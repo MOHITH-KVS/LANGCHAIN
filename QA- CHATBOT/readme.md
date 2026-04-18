@@ -1,0 +1,2 @@
+cd "QA- CHATBOT"
+.\venv\Scripts\activate

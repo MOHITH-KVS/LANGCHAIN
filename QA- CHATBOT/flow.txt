@@ -1,0 +1,73 @@
+🧠 What your code does (simple flow)
+User → Search your data → Add chat history → Send to AI → Get answer
+🔹 1. LLM (Brain)
+chat = ChatGoogleGenerativeAI(...)
+
+👉 This is the AI that gives answers
+
+🔹 2. Load your data
+loader = TextLoader("data.txt")
+documents = loader.load()
+
+👉 Reads your file (your knowledge)
+
+🔹 3. Convert data → searchable
+embeddings = GoogleGenerativeAIEmbeddings(...)
+db = FAISS.from_documents(documents, embeddings)
+
+👉 Turns text into numbers → so it can be searched
+
+🔹 4. Memory (chat history)
+chat_history = []
+
+👉 Stores conversation
+
+🔹 5. User input loop
+user_input = input("You: ")
+
+👉 Takes question
+
+🔹 6. Save user message
+chat_history.append(f"You: {user_input}")
+🔹 7. 🔍 RAG (most important)
+docs = db.similarity_search(user_input)
+retrieved_data = docs[0].page_content
+
+👉 Searches your file
+👉 Gets most relevant info
+
+🔹 8. Add memory
+context = "\n".join(chat_history)
+
+👉 Combines all past messages
+
+🔹 9. Final input to AI
+final_input = f"""
+Use this data:
+{retrieved_data}
+
+Conversation:
+{context}
+"""
+
+👉 You give:
+
+your data 📄
+chat history 🧠
+🔹 10. AI response
+response = chat.invoke(final_input)
+
+👉 AI answers using your data
+
+🔹 11. Save bot reply
+chat_history.append(f"Bot: {response.content}")
+🎯 FINAL UNDERSTANDING
+
+👉 Your chatbot now:
+
+Remembers past 🧠
+Reads your file 📄
+Answers correctly 🤖
+🔥 One-line summary
+
+👉 RAG = search your data + send to AI + get answer
