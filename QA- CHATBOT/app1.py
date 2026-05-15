@@ -3,7 +3,8 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
+#from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 import os
@@ -121,6 +122,37 @@ for api_key in groq_api_keys:
 
 all_answer_models = gemini_models + groq_models
 
+
+# =========================================================
+# SECTION DETECTOR
+# =========================================================
+
+def detect_section(text):
+
+    text = text.lower()
+
+    possible_sections = [
+        "abstract",
+        "introduction",
+        "literature survey",
+        "methodology",
+        "system design",
+        "implementation",
+        "results",
+        "conclusion",
+        "references"
+    ]
+
+    for section in possible_sections:
+
+        if section in text[:300]:
+
+            return section
+
+    return "unknown"
+
+
+
 # =========================================================
 # LOAD PDFs
 # =========================================================
@@ -136,13 +168,59 @@ for file in files:
 
     try:
 
-        loader = PyPDFLoader(file)
+        loader = PyMuPDFLoader(file)
 
         docs = loader.load()
 
-        documents.extend(docs)
+        for doc in docs:
+
+            text = doc.page_content.lower()
+
+            # =========================================
+            # SECTION DETECTION
+            # =========================================
+
+            if "abstract" in text[:1000]:
+
+                doc.metadata["section"] = "abstract"
+
+            elif "introduction" in text[:1000]:
+
+                doc.metadata["section"] = "introduction"
+
+            elif "conclusion" in text[:1000]:
+
+                doc.metadata["section"] = "conclusion"
+
+            elif "literature survey" in text[:1000]:
+
+                doc.metadata["section"] = "literature survey"
+
+            else:
+
+                doc.metadata["section"] = "general"
+
+                print(f"Pages in current PDF: {len(docs)}")
+
+        # ================================================
+        # ADD METADATA
+        # ================================================
+
+        for i, doc in enumerate(docs):
+
+            doc.metadata["source"] = file
+            doc.metadata["page"] = i + 1
+
+            documents.append(doc)
 
         print(f"Loaded PDF: {file}")
+
+        for i in range(min(5, len(docs))):
+
+            print(
+                f"Page {i} Section:",
+                docs[i].metadata.get("section")
+            )
 
     except Exception as e:
 
@@ -165,10 +243,92 @@ text_splitter = RecursiveCharacterTextSplitter(
     ]
 )
 
+print("TOTAL DOCUMENTS:", len(documents))
+
 split_docs = text_splitter.split_documents(documents)
 
-print(f"Total Chunks: {len(split_docs)}")
+# =========================================================
+# ADD METADATA
+# =========================================================
 
+for doc in split_docs:
+
+    section_name = detect_section(doc.page_content)
+
+    doc.metadata["section"] = section_name
+
+    # page number
+
+    if "page" not in doc.metadata:
+
+        doc.metadata["page"] = "unknown"
+
+    # source file
+
+    if "source" not in doc.metadata:
+
+        doc.metadata["source"] = "unknown"
+
+print("\n========== DEBUG CHUNKS ==========\n")
+
+for i, doc in enumerate(split_docs[:20]):
+
+    print(f"\nCHUNK {i}")
+    print(doc.page_content[:500])
+
+    print("\n-------------------------")
+
+# =========================================================
+# SECTION DETECTION
+# =========================================================
+
+section_keywords = [
+    "abstract",
+    "introduction",
+    "conclusion",
+    "methodology",
+    "results",
+    "literature survey",
+    "architecture",
+    "objective",
+    "summary"
+]
+
+for doc in split_docs:
+
+    text = doc.page_content.lower()
+
+    detected_section = "general"
+
+    for section in section_keywords:
+
+        if section in text[:500]:
+
+            detected_section = section
+            break
+
+    # ============================================
+    # STORE SECTION IN METADATA
+    # ============================================
+
+    doc.metadata["section"] = detected_section
+
+print(f"TOTAL SPLIT DOCS: {len(split_docs)}")
+print("\n========== METADATA DEBUG ==========\n")
+
+for i, doc in enumerate(split_docs[:10]):
+
+    print(f"CHUNK {i}")
+
+    print("SECTION:", doc.metadata.get("section"))
+
+    print("PAGE:", doc.metadata.get("page"))
+
+    print("SOURCE:", doc.metadata.get("source"))
+
+    print(doc.page_content[:300])
+
+    print("\n-------------------------\n")
 # =========================================================
 # EMBEDDINGS
 # =========================================================
@@ -324,10 +484,61 @@ while True:
     # FIXED MMR ISSUE
     # =====================================================
 
-    docs = db.similarity_search(
+    #docs = db.similarity_search(
+    #better_query,
+    #k=15
+   #)
+    docs = db.max_marginal_relevance_search(
         better_query,
-        k=10
+        k=15,
+        fetch_k=30,
+        lambda_mult=0.7
     )
+
+    # =====================================================
+    # METADATA FILTERING
+    # =====================================================
+
+    query_lower = user_input.lower()
+
+    filtered_by_metadata = []
+
+    for doc in docs:
+
+        section = doc.metadata.get(
+            "section",
+            ""
+        ).lower()
+
+        # Abstract queries
+
+        if "abstract" in query_lower:
+
+            if section == "abstract":
+
+                filtered_by_metadata.append(doc)
+
+        # Introduction queries
+
+        elif "introduction" in query_lower:
+
+            if section == "introduction":
+
+                filtered_by_metadata.append(doc)
+
+        # Conclusion queries
+
+        elif "conclusion" in query_lower:
+
+            if section == "conclusion":
+
+                filtered_by_metadata.append(doc)
+
+    # Fallback if nothing found
+
+    if len(filtered_by_metadata) > 0:
+
+        docs = filtered_by_metadata
 
     # =====================================================
     # KEYWORD EXTRACTION
@@ -432,120 +643,275 @@ while True:
     docs = filtered_docs[:8]
 
     # =====================================================
-    # RERANKING
-    # =====================================================
+# RERANKING
+# =====================================================
 
-    best_chunk = ""
-    best_score = 0
+best_chunk = ""
+best_score = 0
+best_doc = None
 
-    for doc in docs:
+top_chunks = []
+scored_docs = []
 
-        chunk = doc.page_content
+for doc in docs:
 
-        score_prompt = f"""
-        You are a document relevance evaluator.
+    chunk = doc.page_content
 
-        Question:
-        {user_input}
+    lower_chunk = chunk.lower().strip()
 
-        Chunk:
-        {chunk}
+    # =================================================
+    # RERANK PROMPT
+    # =================================================
 
-        Instructions:
-        - Give score 10 if chunk directly answers the question
-        - Prefer heading matches
-        - Prefer exact keyword matches
-        - Return ONLY one number
-        - Return ONLY 1 to 10
-        - Do NOT explain
-        - Do NOT write text
-        - Do NOT write /10
+    score_prompt = f"""
+    You are a document relevance evaluator.
 
-        Score:
-        """
+    Question:
+    {user_input}
 
-        current_score = 0
+    Chunk:
+    {chunk}
 
-        for item in groq_models:
+    Instructions:
+    - Give score 10 if chunk directly answers the question
+    - Prefer chunks with exact section headings
+    - Prefer chunks containing direct answer
+    - Penalize unrelated sections like certificate,
+      acknowledgements, table of contents
+    - Return ONLY one number
+    - Return ONLY 1 to 10
+    - Do NOT explain
+    - Do NOT write text
+    - Do NOT write /10
 
-            try:
+    Score:
+    """
 
-                score_response = item["chat"].invoke(
-                    score_prompt
-                ).content.strip()
+    current_score = 0
 
-                match = re.search(
-                    r'\b([1-9]|10)\b',
-                    score_response
-                )
+    # =================================================
+    # LLM RERANKING
+    # =================================================
 
-                if match:
+    for item in groq_models:
 
-                    current_score = int(match.group(1))
+        try:
 
-                else:
+            score_response = item["chat"].invoke(
+                score_prompt
+            ).content.strip()
 
-                    current_score = 0
+            match = re.search(
+                r'\b([1-9]|10)\b',
+                score_response
+            )
 
-                print("--------------------------------")
-                print("RERANK MODEL:", item["model"])
-                print("SCORE:", current_score)
-                print("--------------------------------")
+            if match:
 
-                break
+                current_score = int(match.group(1))
 
-            except Exception:
+            else:
 
-                continue
+                current_score = 0
 
-        # =================================================
-        # EXTRA MANUAL BOOST
-        # =================================================
+            print("--------------------------------")
+            print("RERANK MODEL:", item["model"])
+            print("SCORE:", current_score)
+            print("--------------------------------")
 
-        lower_chunk = chunk.lower()
+            break
 
-        for keyword in keywords:
+        except Exception as e:
 
-            if keyword in lower_chunk[:300]:
+            print("RERANK FAILED:", e)
 
-                current_score += 2
+            continue
 
-        # =================================================
-        # SECTION TITLE BOOST
-        # =================================================
+    # =================================================
+    # SECTION BOOSTING
+    # =================================================
 
-        if "abstract" in user_input.lower():
+    clean_chunk = lower_chunk.strip()
 
-            if "abstract" in lower_chunk[:500]:
+    # ABSTRACT BOOST
 
-                current_score += 5
+    if "abstract" in user_input.lower():
 
-        if "introduction" in user_input.lower():
+        if clean_chunk.startswith("abstract"):
 
-            if "introduction" in lower_chunk[:500]:
+            current_score += 15
 
-                current_score += 5
+    # INTRODUCTION BOOST
 
-        if "conclusion" in user_input.lower():
+    if "introduction" in user_input.lower():
 
-            if "conclusion" in lower_chunk[:500]:
+        if "introduction" in clean_chunk[:120]:
 
-                current_score += 5
+            current_score += 15
 
-        if current_score > best_score:
+    # CONCLUSION BOOST
 
-            best_score = current_score
-            best_chunk = chunk
+    if "conclusion" in user_input.lower():
 
-    # =====================================================
-    # DEBUG BEST CHUNK
-    # =====================================================
+        if "conclusion" in clean_chunk[:120]:
 
-    print("\n============== BEST CHUNK ==============\n")
+            current_score += 15
 
-    print(best_chunk[:2500])
+    # METHODOLOGY BOOST
+
+    if "methodology" in user_input.lower():
+
+        if "methodology" in clean_chunk[:150]:
+
+            current_score += 15
+
+    # RESULTS BOOST
+
+    if "results" in user_input.lower():
+
+        if "results" in clean_chunk[:150]:
+
+            current_score += 15
+
+    # ARCHITECTURE BOOST
+
+    if "architecture" in user_input.lower():
+
+        if "architecture" in clean_chunk[:150]:
+
+            current_score += 15
+
+    # =================================================
+    # KEYWORD BOOSTING
+    # =================================================
+
+    keyword_matches = 0
+
+    for keyword in keywords:
+
+        if keyword in clean_chunk:
+
+            keyword_matches += 1
+
+    current_score += keyword_matches
+
+    # =================================================
+    # NEGATIVE BOOSTING
+    # =================================================
+
+    bad_sections = [
+        "certificate",
+        "acknowledgement",
+        "table of contents",
+        "list of figures",
+        "list of tables",
+        "declaration"
+    ]
+
+    for bad_word in bad_sections:
+
+        if bad_word in clean_chunk[:250]:
+
+            current_score -= 10
+
+    # =================================================
+    # STORE SCORED DOCS
+    # =================================================
+
+    scored_docs.append({
+
+        "score": current_score,
+        "content": chunk,
+        "metadata": doc.metadata
+
+    })
+
+    # =================================================
+    # STORE TOP CHUNKS
+    # =================================================
+
+    top_chunks.append({
+
+        "score": current_score,
+        "chunk": chunk,
+        "doc": doc
+
+    })
+
+    # =================================================
+    # BEST DOC SELECTION
+    # =================================================
+
+    if current_score > best_score:
+
+        best_score = current_score
+        best_chunk = chunk
+        best_doc = doc
+
+# =====================================================
+# SORT TOP CHUNKS
+# =====================================================
+
+top_chunks = sorted(
+    top_chunks,
+    key=lambda x: x["score"],
+    reverse=True
+)
+
+# =====================================================
+# SELECT TOP CHUNKS
+# =====================================================
+
+selected_chunks = top_chunks[:3]
+
+# =====================================================
+# BUILD FINAL CONTEXT
+# =====================================================
+
+combined_context = ""
+
+for item in selected_chunks:
+
+    combined_context += "\n\n"
+    combined_context += item["chunk"]
+
+# =====================================================
+# DEBUG TOP CHUNKS
+# =====================================================
+
+print("\n============== TOP CHUNKS ==============\n")
+
+for i, item in enumerate(selected_chunks):
+
+    print(f"\n########## CHUNK {i+1} ##########\n")
+
+    print("FINAL SCORE:", item["score"])
+
+    if hasattr(item["doc"], "metadata"):
+
+        print("METADATA:", item["doc"].metadata)
+
+    print("\n")
+
+    print(item["chunk"][:1500])
 
     print("\n========================================\n")
+
+# =====================================================
+# BEST DOC DEBUG
+# =====================================================
+
+if best_doc:
+
+    print("\n============== BEST DOC ==============\n")
+
+    print("BEST SCORE:", best_score)
+
+    if hasattr(best_doc, "metadata"):
+
+        print("BEST DOC METADATA:", best_doc.metadata)
+
+    print("\n======================================\n")
 
     # =====================================================
     # FINAL PROMPT
@@ -562,7 +928,7 @@ while True:
     - If answer exists in DATA, do not say "I don't know"
 
     DATA:
-    {best_chunk}
+    {combined_context}
 
     Conversation:
     {context}
