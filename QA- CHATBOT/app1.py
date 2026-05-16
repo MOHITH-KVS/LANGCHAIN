@@ -6,6 +6,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
 #from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.retrievers import BM25Retriever
 
 import os
 import re
@@ -248,6 +249,18 @@ print("TOTAL DOCUMENTS:", len(documents))
 split_docs = text_splitter.split_documents(documents)
 
 # =========================================================
+# BM25 RETRIEVER
+# =========================================================
+
+bm25_retriever = BM25Retriever.from_documents(
+    split_docs
+)
+
+bm25_retriever.k = 10
+
+print("BM25 Retriever Ready")
+
+# =========================================================
 # ADD METADATA
 # =========================================================
 
@@ -424,23 +437,30 @@ while True:
     else:
 
         search_query = f"""
-        You are a search query optimizer.
+        You are an advanced conversational query rewriter for RAG systems.
 
-        RULES:
-        - Keep the meaning EXACTLY SAME
-        - Do NOT add extra concepts
+        Your job:
+        Convert the user's latest question into a COMPLETE standalone search query.
+
+        IMPORTANT RULES:
+        - Preserve original meaning exactly
+        - Use conversation history for references like:
+        "it", "that", "they", "this section"
+        - Expand short follow-up questions into full standalone queries
+        - Keep important technical keywords
         - Do NOT hallucinate
+        - Do NOT answer the question
         - Do NOT explain
-        - Return SHORT query only
-        - Preserve important keywords
+        - Return ONLY optimized search query
+        - Keep query concise but complete
 
-        Conversation:
+        Conversation History:
         {context}
 
-        Question:
+        Latest User Question:
         {user_input}
 
-        Optimized Search Query:
+        Standalone Search Query:
         """
 
         for item in groq_models:
@@ -480,20 +500,64 @@ while True:
     better_query = better_query.lower().strip()
 
     # =====================================================
-    # SIMILARITY SEARCH
-    # FIXED MMR ISSUE
+    # HYBRID RETRIEVAL
+    # Semantic + BM25
     # =====================================================
 
-    #docs = db.similarity_search(
-    #better_query,
-    #k=15
-   #)
-    docs = db.max_marginal_relevance_search(
+    # ============================================
+    # SEMANTIC SEARCH (FAISS)
+    # ============================================
+
+    semantic_docs = db.max_marginal_relevance_search(
         better_query,
-        k=15,
+        k=10,
         fetch_k=30,
         lambda_mult=0.7
     )
+
+    # ============================================
+    # BM25 KEYWORD SEARCH
+    # ============================================
+
+    bm25_docs = bm25_retriever.invoke(
+        better_query
+    )
+
+    # ============================================
+    # COMBINE RESULTS
+    # ============================================
+
+    all_docs = semantic_docs + bm25_docs
+
+    # ============================================
+    # REMOVE DUPLICATES
+    # ============================================
+
+    unique_docs = []
+    seen_content = set()
+
+    for doc in all_docs:
+
+        content = doc.page_content.strip()
+
+        if content not in seen_content:
+
+            unique_docs.append(doc)
+
+            seen_content.add(content)
+
+    # ============================================
+    # FINAL DOCS
+    # ============================================
+
+    docs = unique_docs[:15]
+
+    print("\n====================================")
+    print("HYBRID RETRIEVAL ENABLED")
+    print("Semantic Docs:", len(semantic_docs))
+    print("BM25 Docs:", len(bm25_docs))
+    print("Combined Docs:", len(docs))
+    print("====================================\n")
 
     # =====================================================
     # METADATA FILTERING
@@ -643,275 +707,310 @@ while True:
     docs = filtered_docs[:8]
 
     # =====================================================
-# RERANKING
-# =====================================================
+    # RERANKING
+    # =====================================================
 
-best_chunk = ""
-best_score = 0
-best_doc = None
+    best_chunk = ""
+    best_score = 0
+    best_doc = None
 
-top_chunks = []
-scored_docs = []
+    top_chunks = []
+    scored_docs = []
 
-for doc in docs:
+    for doc in docs:
 
-    chunk = doc.page_content
+        chunk = doc.page_content
 
-    lower_chunk = chunk.lower().strip()
+        lower_chunk = chunk.lower().strip()
 
-    # =================================================
-    # RERANK PROMPT
-    # =================================================
+        # =================================================
+        # RERANK PROMPT
+        # =================================================
 
-    score_prompt = f"""
-    You are a document relevance evaluator.
+        score_prompt = f"""
+        You are a document relevance evaluator.
 
-    Question:
-    {user_input}
+        Question:
+        {user_input}
 
-    Chunk:
-    {chunk}
+        Chunk:
+        {chunk}
 
-    Instructions:
-    - Give score 10 if chunk directly answers the question
-    - Prefer chunks with exact section headings
-    - Prefer chunks containing direct answer
-    - Penalize unrelated sections like certificate,
-      acknowledgements, table of contents
-    - Return ONLY one number
-    - Return ONLY 1 to 10
-    - Do NOT explain
-    - Do NOT write text
-    - Do NOT write /10
+        Instructions:
+        - Give score 10 if chunk directly answers the question
+        - Prefer chunks with exact section headings
+        - Prefer chunks containing direct answer
+        - Penalize unrelated sections like certificate,
+        acknowledgements, table of contents
+        - Return ONLY one number
+        - Return ONLY 1 to 10
+        - Do NOT explain
+        - Do NOT write text
+        - Do NOT write /10
 
-    Score:
-    """
+        Score:
+        """
 
-    current_score = 0
+        current_score = 0
 
-    # =================================================
-    # LLM RERANKING
-    # =================================================
+        # =================================================
+        # LLM RERANKING
+        # =================================================
 
-    for item in groq_models:
+        for item in groq_models:
 
-        try:
+            try:
 
-            score_response = item["chat"].invoke(
-                score_prompt
-            ).content.strip()
+                score_response = item["chat"].invoke(
+                    score_prompt
+                ).content.strip()
 
-            match = re.search(
-                r'\b([1-9]|10)\b',
-                score_response
-            )
+                match = re.search(
+                    r'\b([1-9]|10)\b',
+                    score_response
+                )
 
-            if match:
+                if match:
 
-                current_score = int(match.group(1))
+                    current_score = int(match.group(1))
 
-            else:
+                else:
 
-                current_score = 0
+                    current_score = 0
 
-            print("--------------------------------")
-            print("RERANK MODEL:", item["model"])
-            print("SCORE:", current_score)
-            print("--------------------------------")
+                print("--------------------------------")
+                print("RERANK MODEL:", item["model"])
+                print("SCORE:", current_score)
+                print("--------------------------------")
 
-            break
+                break
 
-        except Exception as e:
+            except Exception as e:
 
-            print("RERANK FAILED:", e)
+                print("RERANK FAILED:", e)
 
-            continue
+                continue
 
-    # =================================================
-    # SECTION BOOSTING
-    # =================================================
+        # =================================================
+        # SECTION BOOSTING
+        # =================================================
 
-    clean_chunk = lower_chunk.strip()
+        clean_chunk = lower_chunk.strip()
 
-    # ABSTRACT BOOST
+        # ABSTRACT BOOST
 
-    if "abstract" in user_input.lower():
+        if "abstract" in user_input.lower():
 
-        if clean_chunk.startswith("abstract"):
+            if clean_chunk.startswith("abstract"):
 
-            current_score += 15
+                current_score += 15
 
-    # INTRODUCTION BOOST
+        # INTRODUCTION BOOST
 
-    if "introduction" in user_input.lower():
+        if "introduction" in user_input.lower():
 
-        if "introduction" in clean_chunk[:120]:
+            if "introduction" in clean_chunk[:120]:
 
-            current_score += 15
+                current_score += 15
 
-    # CONCLUSION BOOST
+        # CONCLUSION BOOST
 
-    if "conclusion" in user_input.lower():
+        if "conclusion" in user_input.lower():
 
-        if "conclusion" in clean_chunk[:120]:
+            if "conclusion" in clean_chunk[:120]:
 
-            current_score += 15
+                current_score += 15
 
-    # METHODOLOGY BOOST
+        # METHODOLOGY BOOST
 
-    if "methodology" in user_input.lower():
+        if "methodology" in user_input.lower():
 
-        if "methodology" in clean_chunk[:150]:
+            if "methodology" in clean_chunk[:150]:
 
-            current_score += 15
+                current_score += 15
 
-    # RESULTS BOOST
+        # RESULTS BOOST
 
-    if "results" in user_input.lower():
+        if "results" in user_input.lower():
 
-        if "results" in clean_chunk[:150]:
+            if "results" in clean_chunk[:150]:
 
-            current_score += 15
+                current_score += 15
 
-    # ARCHITECTURE BOOST
+        # ARCHITECTURE BOOST
 
-    if "architecture" in user_input.lower():
+        if "architecture" in user_input.lower():
 
-        if "architecture" in clean_chunk[:150]:
+            if "architecture" in clean_chunk[:150]:
 
-            current_score += 15
+                current_score += 15
 
-    # =================================================
-    # KEYWORD BOOSTING
-    # =================================================
+        # =================================================
+        # KEYWORD BOOSTING
+        # =================================================
 
-    keyword_matches = 0
+        keyword_matches = 0
 
-    for keyword in keywords:
+        for keyword in keywords:
 
-        if keyword in clean_chunk:
+            if keyword in clean_chunk:
 
-            keyword_matches += 1
+                keyword_matches += 1
 
-    current_score += keyword_matches
+        current_score += keyword_matches
 
-    # =================================================
-    # NEGATIVE BOOSTING
-    # =================================================
+        # =================================================
+        # NEGATIVE BOOSTING
+        # =================================================
 
-    bad_sections = [
-        "certificate",
-        "acknowledgement",
-        "table of contents",
-        "list of figures",
-        "list of tables",
-        "declaration"
-    ]
+        bad_sections = [
+            "certificate",
+            "acknowledgement",
+            "table of contents",
+            "list of figures",
+            "list of tables",
+            "declaration"
+        ]
 
-    for bad_word in bad_sections:
+        for bad_word in bad_sections:
 
-        if bad_word in clean_chunk[:250]:
+            if bad_word in clean_chunk[:250]:
 
-            current_score -= 10
+                current_score -= 10
 
-    # =================================================
-    # STORE SCORED DOCS
-    # =================================================
+        # =================================================
+        # STORE SCORED DOCS
+        # =================================================
 
-    scored_docs.append({
+        scored_docs.append({
 
-        "score": current_score,
-        "content": chunk,
-        "metadata": doc.metadata
+            "score": current_score,
+            "content": chunk,
+            "metadata": doc.metadata
 
-    })
+        })
 
-    # =================================================
-    # STORE TOP CHUNKS
-    # =================================================
+        # =================================================
+        # STORE TOP CHUNKS
+        # =================================================
 
-    top_chunks.append({
+        top_chunks.append({
 
-        "score": current_score,
-        "chunk": chunk,
-        "doc": doc
+            "score": current_score,
+            "chunk": chunk,
+            "doc": doc
 
-    })
+        })
 
-    # =================================================
-    # BEST DOC SELECTION
-    # =================================================
+        # =================================================
+        # BEST DOC SELECTION
+        # =================================================
 
-    if current_score > best_score:
+        if current_score > best_score:
 
-        best_score = current_score
-        best_chunk = chunk
-        best_doc = doc
+            best_score = current_score
+            best_chunk = chunk
+            best_doc = doc
 
-# =====================================================
-# SORT TOP CHUNKS
-# =====================================================
+    # =====================================================
+    # SORT TOP CHUNKS
+    # =====================================================
 
-top_chunks = sorted(
-    top_chunks,
-    key=lambda x: x["score"],
-    reverse=True
-)
+    top_chunks = sorted(
+        top_chunks,
+        key=lambda x: x["score"],
+        reverse=True
+    )
 
-# =====================================================
-# SELECT TOP CHUNKS
-# =====================================================
+    # =====================================================
+    # SELECT TOP CHUNKS
+    # =====================================================
 
-selected_chunks = top_chunks[:3]
+    selected_chunks = top_chunks[:5]
 
-# =====================================================
-# BUILD FINAL CONTEXT
-# =====================================================
+    # =====================================================
+    # REMOVE DUPLICATE / OVERLAPPING CHUNKS
+    # =====================================================
 
-combined_context = ""
+    unique_selected_chunks = []
 
-for item in selected_chunks:
+    seen_snippets = set()
 
-    combined_context += "\n\n"
-    combined_context += item["chunk"]
+    for item in selected_chunks:
 
-# =====================================================
-# DEBUG TOP CHUNKS
-# =====================================================
+        chunk = item["chunk"]
 
-print("\n============== TOP CHUNKS ==============\n")
+        # ============================================
+        # CREATE SMALL SIGNATURE
+        # ============================================
 
-for i, item in enumerate(selected_chunks):
+        signature = chunk[:300].lower().strip()
 
-    print(f"\n########## CHUNK {i+1} ##########\n")
+        # ============================================
+        # CHECK DUPLICATES
+        # ============================================
 
-    print("FINAL SCORE:", item["score"])
+        if signature not in seen_snippets:
 
-    if hasattr(item["doc"], "metadata"):
+            unique_selected_chunks.append(item)
 
-        print("METADATA:", item["doc"].metadata)
+            seen_snippets.add(signature)
 
-    print("\n")
+    # =====================================================
+    # FINAL UNIQUE CHUNKS
+    # =====================================================
 
-    print(item["chunk"][:1500])
+    unique_selected_chunks = unique_selected_chunks[:3]
 
-    print("\n========================================\n")
+    # =====================================================
+    # BUILD FINAL CONTEXT
+    # =====================================================
 
-# =====================================================
-# BEST DOC DEBUG
-# =====================================================
+    combined_context = ""
 
-if best_doc:
+    for item in unique_selected_chunks:
 
-    print("\n============== BEST DOC ==============\n")
+        combined_context += "\n\n"
 
-    print("BEST SCORE:", best_score)
+        combined_context += item["chunk"]
 
-    if hasattr(best_doc, "metadata"):
+    # =====================================================
+    # DEBUG UNIQUE CHUNKS
+    # =====================================================
 
-        print("BEST DOC METADATA:", best_doc.metadata)
+    print("\n============== FINAL UNIQUE CHUNKS ==============\n")
 
-    print("\n======================================\n")
+    for i, item in enumerate(unique_selected_chunks):
+
+        print(f"\n########## UNIQUE CHUNK {i+1} ##########\n")
+
+        print("FINAL SCORE:", item["score"])
+
+        if hasattr(item["doc"], "metadata"):
+
+            print("METADATA:", item["doc"].metadata)
+
+        print("\n")
+
+        print(item["chunk"][:1500])
+
+        print("\n========================================\n")
+
+    # =====================================================
+    # BEST DOC DEBUG
+    # =====================================================
+
+    if best_doc:
+
+        print("\n============== BEST DOC ==============\n")
+
+        print("BEST SCORE:", best_score)
+
+        if hasattr(best_doc, "metadata"):
+
+            print("BEST DOC METADATA:", best_doc.metadata)
+
+        print("\n======================================\n")
 
     # =====================================================
     # FINAL PROMPT
