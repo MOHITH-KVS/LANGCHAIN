@@ -256,7 +256,7 @@ bm25_retriever = BM25Retriever.from_documents(
     split_docs
 )
 
-bm25_retriever.k = 10
+#bm25_retriever.k = 10
 
 print("BM25 Retriever Ready")
 
@@ -369,6 +369,143 @@ style = input("Style (teacher/funny/strict/friendly): ")
 # =========================================================
 
 chat_history = []
+
+# =========================================================
+# CONTEXT COMPRESSION
+# =========================================================
+
+def extract_relevant_sentences(text, keywords):
+
+    sentences = re.split(
+        r'(?<=[.!?])\s+',
+        text
+    )
+
+    important_sentences = []
+
+    for sentence in sentences:
+
+        sentence_lower = sentence.lower()
+
+        score = 0
+
+        # =========================================
+        # KEYWORD MATCH SCORING
+        # =========================================
+
+        for keyword in keywords:
+
+            if keyword in sentence_lower:
+
+                score += 1
+
+        # =========================================
+        # KEEP RELEVANT SENTENCES
+        # =========================================
+
+        if score > 0:
+
+            important_sentences.append(sentence)
+
+    # =============================================
+    # FALLBACK
+    # =============================================
+
+    if len(important_sentences) == 0:
+
+        return text[:700]
+
+    # =============================================
+    # RETURN COMPRESSED CONTEXT
+    # =============================================
+
+    return " ".join(important_sentences[:8])
+
+
+# =========================================================
+# QUERY INTENT DETECTION
+# =========================================================
+
+def detect_query_intent(query):
+
+    query = query.lower()
+
+    # =============================================
+    # SUMMARY QUERIES
+    # =============================================
+
+    summary_words = [
+        "summarize",
+        "summary",
+        "brief",
+        "short note"
+    ]
+
+    for word in summary_words:
+
+        if word in query:
+
+            return "summary"
+
+    # =============================================
+    # COMPARISON QUERIES
+    # =============================================
+
+    comparison_words = [
+        "compare",
+        "difference",
+        "vs",
+        "versus"
+    ]
+
+    for word in comparison_words:
+
+        if word in query:
+
+            return "comparison"
+
+    # =============================================
+    # EXPLANATION QUERIES
+    # =============================================
+
+    explanation_words = [
+        "explain",
+        "how",
+        "why",
+        "workflow",
+        "architecture",
+        "methodology"
+    ]
+
+    for word in explanation_words:
+
+        if word in query:
+
+            return "explanation"
+
+    # =============================================
+    # SECTION QUERIES
+    # =============================================
+
+    section_words = [
+        "abstract",
+        "introduction",
+        "conclusion",
+        "results"
+    ]
+
+    for word in section_words:
+
+        if word in query:
+
+            return "section"
+
+    # =============================================
+    # DEFAULT
+    # =============================================
+
+    return "factual"
+
 
 # =========================================================
 # CHAT LOOP
@@ -500,6 +637,122 @@ while True:
     better_query = better_query.lower().strip()
 
     # =====================================================
+    # DETECT QUERY INTENT
+    # =====================================================
+
+    query_intent = detect_query_intent(
+        user_input
+    )
+
+    print("\n====================================")
+    print("QUERY INTENT:", query_intent)
+    print("====================================\n")
+
+    # =====================================================
+    # ADAPTIVE RETRIEVAL SIZE
+    # =====================================================
+
+    query_words = better_query.split()
+
+    # ============================================
+    # DEFAULT
+    # ============================================
+
+    retrieval_k = 10
+
+    fetch_k = 20
+
+    lambda_mult = 0.7
+
+    # ============================================
+    # FACTUAL QUESTIONS
+    # ============================================
+
+    if query_intent == "factual":
+
+        retrieval_k = 6
+
+        fetch_k = 15
+
+        lambda_mult = 0.9
+
+    # ============================================
+    # SUMMARY QUESTIONS
+    # ============================================
+
+    elif query_intent == "summary":
+
+        retrieval_k = 18
+
+        fetch_k = 40
+
+        lambda_mult = 0.5
+
+    # ============================================
+    # COMPARISON QUESTIONS
+    # ============================================
+
+    elif query_intent == "comparison":
+
+        retrieval_k = 15
+
+        fetch_k = 35
+
+        lambda_mult = 0.4
+
+    # ============================================
+    # EXPLANATION QUESTIONS
+    # ============================================
+
+    elif query_intent == "explanation":
+
+        retrieval_k = 15
+
+        fetch_k = 30
+
+        lambda_mult = 0.6
+
+    # ============================================
+    # SECTION QUESTIONS
+    # ============================================
+
+    elif query_intent == "section":
+
+        retrieval_k = 10
+
+        fetch_k = 20
+
+        lambda_mult = 0.8
+
+    # ============================================
+    # EXTRA BOOST FOR EXPLANATION QUERIES
+    # ============================================
+
+    large_query_keywords = [
+        "explain",
+        "detail",
+        "detailed",
+        "architecture",
+        "methodology",
+        "complete",
+        "workflow",
+        "implementation"
+    ]
+
+    for word in large_query_keywords:
+
+        if word in better_query:
+
+            retrieval_k += 5
+
+            break
+
+    print("\n====================================")
+    print("ADAPTIVE RETRIEVAL ENABLED")
+    print("RETRIEVAL K:", retrieval_k)
+    print("====================================\n")
+
+    # =====================================================
     # HYBRID RETRIEVAL
     # Semantic + BM25
     # =====================================================
@@ -510,14 +763,16 @@ while True:
 
     semantic_docs = db.max_marginal_relevance_search(
         better_query,
-        k=10,
-        fetch_k=30,
-        lambda_mult=0.7
+        k=retrieval_k,
+        fetch_k=fetch_k,
+        lambda_mult=lambda_mult
     )
 
     # ============================================
     # BM25 KEYWORD SEARCH
     # ============================================
+
+    bm25_retriever.k = retrieval_k
 
     bm25_docs = bm25_retriever.invoke(
         better_query
@@ -643,6 +898,34 @@ while True:
     for doc in docs:
 
         chunk = doc.page_content.lower()
+
+        # =================================================
+        # NOISE FILTERING
+        # =================================================
+
+        noise_patterns = [
+            "table of contents",
+            "list of figures",
+            "list of tables",
+            "certificate",
+            "acknowledgement",
+            "declaration",
+            "page no",
+            "chapter"
+        ]
+
+        skip_chunk = False
+
+        for noise in noise_patterns:
+
+            if noise in chunk[:400]:
+
+                skip_chunk = True
+                break
+
+        if skip_chunk:
+
+            continue
 
         keyword_matches = 0
 
@@ -849,15 +1132,56 @@ while True:
         # KEYWORD BOOSTING
         # =================================================
 
+        # =================================================
+        # DYNAMIC PRIORITY SCORING
+        # =================================================
+
         keyword_matches = 0
 
+        heading_matches = 0
+
+        important_sentences_count = 0
+
+        # ================================================
+        # KEYWORD MATCHING
+        # ================================================
+
         for keyword in keywords:
+
+            # FULL CHUNK MATCH
 
             if keyword in clean_chunk:
 
                 keyword_matches += 1
 
-        current_score += keyword_matches
+            # HEADING PRIORITY
+
+            if keyword in clean_chunk[:250]:
+
+                heading_matches += 1
+
+        # ================================================
+        # CONTEXT COMPRESSION QUALITY
+        # ================================================
+
+        compressed_preview = extract_relevant_sentences(
+            chunk,
+            keywords
+        )
+
+        important_sentences_count = len(
+            compressed_preview.split(".")
+        )
+
+        # ================================================
+        # WEIGHTED PRIORITY SCORE
+        # ================================================
+
+        current_score += keyword_matches * 2
+
+        current_score += heading_matches * 3
+
+        current_score += important_sentences_count
 
         # =================================================
         # NEGATIVE BOOSTING
@@ -962,17 +1286,27 @@ while True:
 
     unique_selected_chunks = unique_selected_chunks[:3]
 
+
     # =====================================================
-    # BUILD FINAL CONTEXT
+    # BUILD SMART COMPRESSED CONTEXT
     # =====================================================
 
     combined_context = ""
 
     for item in unique_selected_chunks:
 
+        compressed_chunk = extract_relevant_sentences(
+            item["chunk"],
+            keywords
+        )
+
         combined_context += "\n\n"
 
-        combined_context += item["chunk"]
+        combined_context += compressed_chunk
+        compressed_chunk = extract_relevant_sentences(
+            chunk,
+            keywords
+        )
 
     # =====================================================
     # DEBUG UNIQUE CHUNKS
@@ -1016,24 +1350,143 @@ while True:
     # FINAL PROMPT
     # =====================================================
 
-    final_input = f"""
-    You are a {style} assistant.
+    # =====================================================
+    # DYNAMIC FINAL PROMPT
+    # =====================================================
 
-    RULES:
-    - Answer ONLY using DATA
-    - Be detailed
-    - Preserve headings
-    - Never hallucinate
-    - If answer exists in DATA, do not say "I don't know"
+    # =====================================================
+    # SUMMARY PROMPT
+    # =====================================================
 
-    DATA:
-    {combined_context}
+    if query_intent == "summary":
 
-    Conversation:
-    {context}
+        final_input = f"""
+        You are a {style} assistant.
 
-    Final Answer:
-    """
+        TASK:
+        - Give a concise summary
+        - Keep answer between 5 to 8 lines
+        - Use ONLY information from DATA
+        - Preserve original technical meaning
+        - Preserve project names and terminology
+        - Do NOT generalize
+        - Do NOT invent information
+        - If information is insufficient, say:
+        "Relevant summary not found in retrieved data."
+
+        IMPORTANT:
+        - Do NOT create generic explanations
+        - Do NOT guess meaning
+        - Stay faithful to DATA
+
+        DATA:
+        {combined_context}
+
+        Conversation:
+        {context}
+
+        Accurate Summary:
+        """
+
+    # =====================================================
+    # EXPLANATION PROMPT
+    # =====================================================
+
+    elif query_intent == "explanation":
+
+        final_input = f"""
+        You are a {style} assistant.
+
+        TASK:
+        - Explain in detail
+        - Teach step-by-step
+        - Preserve headings if available
+        - Explain workflow clearly
+        - Answer ONLY using DATA
+        - Do NOT hallucinate
+
+        DATA:
+        {combined_context}
+
+        Conversation:
+        {context}
+
+        Detailed Explanation:
+        """
+
+    # =====================================================
+    # COMPARISON PROMPT
+    # =====================================================
+
+    elif query_intent == "comparison":
+
+        final_input = f"""
+        You are a {style} assistant.
+
+        TASK:
+        - Compare clearly
+        - Use points or table format
+        - Mention differences properly
+        - Answer ONLY from DATA
+        - Do NOT hallucinate
+
+        DATA:
+        {combined_context}
+
+        Conversation:
+        {context}
+
+        Comparison Answer:
+        """
+
+    # =====================================================
+    # SECTION PROMPT
+    # =====================================================
+
+    elif query_intent == "section":
+
+        final_input = f"""
+        You are a {style} assistant.
+
+        TASK:
+        - Extract the requested section properly
+        - Preserve original headings
+        - Explain clearly
+        - Answer ONLY from DATA
+        - Do NOT hallucinate
+
+        DATA:
+        {combined_context}
+
+        Conversation:
+        {context}
+
+        Section Answer:
+        """
+
+    # =====================================================
+    # FACTUAL PROMPT
+    # =====================================================
+
+    else:
+
+        final_input = f"""
+        You are a {style} assistant.
+
+        TASK:
+        - Give direct factual answer
+        - Keep answer accurate
+        - Answer ONLY from DATA
+        - Do NOT hallucinate
+
+        DATA:
+        {combined_context}
+
+        Conversation:
+        {context}
+
+        Final Answer:
+        """
 
     # =====================================================
     # FINAL ANSWER
