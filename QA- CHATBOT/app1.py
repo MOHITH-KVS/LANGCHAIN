@@ -431,6 +431,29 @@ def detect_query_intent(query):
     query = query.lower()
 
     # =============================================
+    # SECTION QUERIES
+    # =============================================
+
+    section_words = [
+        "abstract",
+        "introduction",
+        "conclusion",
+        "results",
+        "methodology",
+        "architecture",
+        "implementation",
+        "literature survey",
+        "objective",
+        "system design"
+    ]
+
+    for word in section_words:
+
+        if word in query:
+
+            return "section"
+
+    # =============================================
     # SUMMARY QUERIES
     # =============================================
 
@@ -483,22 +506,6 @@ def detect_query_intent(query):
 
             return "explanation"
 
-    # =============================================
-    # SECTION QUERIES
-    # =============================================
-
-    section_words = [
-        "abstract",
-        "introduction",
-        "conclusion",
-        "results"
-    ]
-
-    for word in section_words:
-
-        if word in query:
-
-            return "section"
 
     # =============================================
     # DEFAULT
@@ -936,12 +943,30 @@ while True:
                 keyword_matches += 1
 
         # =================================================
-        # STRICT FILTERING
+        # MINIMUM CONTENT QUALITY CHECK
         # =================================================
 
-        if keyword_matches >= 1:
+        word_count = len(chunk.split())
 
-            filtered_docs.append(doc)
+        meaningful_sentences = len(
+            re.findall(r'[.!?]', chunk)
+        )
+
+        # Reject tiny / meaningless chunks
+
+        if word_count < 25:
+            continue
+
+        if meaningful_sentences < 1:
+            continue
+
+    # =================================================
+    # STRICT FILTERING
+    # =================================================
+
+    if keyword_matches >= 1:
+
+        filtered_docs.append(doc)
 
     # =====================================================
     # HEADER BOOSTING
@@ -982,6 +1007,9 @@ while True:
 
     print(f"\nSemantic Results: {len(docs)}")
     print(f"Filtered Results: {len(filtered_docs)}")
+
+    print("FILTERED DOCS AFTER QUALITY CHECK:",
+      len(filtered_docs))
 
     # =====================================================
     # FINAL DOCS
@@ -1288,25 +1316,37 @@ while True:
 
 
     # =====================================================
-    # BUILD SMART COMPRESSED CONTEXT
+    # BUILD FINAL CONTEXT
     # =====================================================
 
     combined_context = ""
 
     for item in unique_selected_chunks:
 
-        compressed_chunk = extract_relevant_sentences(
-            item["chunk"],
-            keywords
-        )
+        chunk_text = item["chunk"]
 
-        combined_context += "\n\n"
+        # ============================================
+        # SECTION QUERIES -> KEEP FULL CHUNK
+        # ============================================
 
-        combined_context += compressed_chunk
-        compressed_chunk = extract_relevant_sentences(
-            chunk,
-            keywords
-        )
+        if query_intent in ["section", "summary"]:
+
+            combined_context += "\n\n"
+            combined_context += chunk_text[:2000]
+
+        # ============================================
+        # FACTUAL / OTHER -> COMPRESS
+        # ============================================
+
+        else:
+
+            compressed_chunk = extract_relevant_sentences(
+                chunk_text,
+                keywords
+            )
+
+            combined_context += "\n\n"
+            combined_context += compressed_chunk
 
     # =====================================================
     # DEBUG UNIQUE CHUNKS
@@ -1364,20 +1404,27 @@ while True:
         You are a {style} assistant.
 
         TASK:
-        - Give a concise summary
-        - Keep answer between 5 to 8 lines
+        - Generate a meaningful academic summary
+        - Keep answer between 80 to 150 words
         - Use ONLY information from DATA
-        - Preserve original technical meaning
-        - Preserve project names and terminology
-        - Do NOT generalize
-        - Do NOT invent information
-        - If information is insufficient, say:
+        - Preserve technical meaning
+        - Preserve project names
+        - Explain the core idea properly
+        - Do NOT make answer too short
+        - STRICTLY answer only from DATA
+        - If DATA does not contain answer, say:
+        "Relevant information not found in retrieved PDF."
+        - Do NOT use external knowledge
+        - Do NOT generate generic explanations
+        - Do NOT assume project details
+        - Do NOT generate generic definitions
+        - If DATA is insufficient, say:
         "Relevant summary not found in retrieved data."
 
         IMPORTANT:
-        - Do NOT create generic explanations
-        - Do NOT guess meaning
-        - Stay faithful to DATA
+        - Summary should feel informative
+        - Include purpose, objectives, and key idea if available
+        - Avoid one-line answers
 
         DATA:
         {combined_context}
@@ -1453,7 +1500,11 @@ while True:
         - Preserve original headings
         - Explain clearly
         - Answer ONLY from DATA
-        - Do NOT hallucinate
+        - STRICTLY answer only from DATA
+        - Do NOT use outside knowledge
+        - Do NOT invent project details
+        - If answer is unclear in DATA, say:
+        "Relevant section content not found."
 
         DATA:
         {combined_context}
