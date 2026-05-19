@@ -73,24 +73,26 @@ def create_metadata(file_path, page_num, section):
 
 
 
-docs = load_pdf("GVP-MAAA DOCUMENTATION (1).pdf")
+if __name__ == "__main__":
 
-raw_text = docs[0].page_content
+    docs = load_pdf("GVP-MAAA DOCUMENTATION (1).pdf")
 
-cleaned_text = clean_text(raw_text)
+    raw_text = docs[0].page_content
 
-section = detect_section(cleaned_text)
+    cleaned_text = clean_text(raw_text)
 
-metadata = create_metadata(
-    "GVP-MAAA DOCUMENTATION (1).pdf",
-    1,
-    section
-)
+    section = detect_section(cleaned_text)
 
-print(cleaned_text[:500])
+    metadata = create_metadata(
+        "GVP-MAAA DOCUMENTATION (1).pdf",
+        1,
+        section
+    )
 
-print("\nSECTION DETECTED:")
-print(section)
+    print(cleaned_text[:500])
 
-print("\nMETADATA:")
-print(metadata)
+    print("\nSECTION DETECTED:")
+    print(section)
+
+    print("\nMETADATA:")
+    print(metadata)
