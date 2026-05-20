@@ -2,11 +2,14 @@
 
 #This file should ONLY:
 
-#Responsibility	            Why
-#Load PDFs	                get text
-#Clean text	                remove noise
-#Detect sections	        preserve structure
-#Add metadata	            improve retrieval
+#| Responsibility     | Why                       |
+#| ------------------ | ------------------------- |
+#| Load PDFs          | extract text              |
+#| Clean text         | remove noise              |
+#| Detect sections    | preserve structure        |
+#| Add metadata       | smarter retrieval         |
+#| Filter noisy pages | improve retrieval quality |
+
 
 from langchain_community.document_loaders import PyMuPDFLoader
 import re
@@ -18,24 +21,28 @@ def load_pdf(file_path):
     return documents
 
 #function to clean text by removing multiple new lines, spaces, tabs, and unnecessary blank lines
+import re
+
+
 def clean_text(text):
 
-    # remove multiple new lines
-    text = re.sub(r'\n+', '\n', text)
+    # Remove extra spaces and new lines
+    text = re.sub(r'\s+', ' ', text)
 
-    # replace isolated line breaks with spaces
-    text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
+    # Remove standalone page numbers
+    text = re.sub(r'\b\d+\b(?=\s+[A-Z])', '', text)
 
-    # remove multiple spaces
-    text = re.sub(r' +', ' ', text)
+    # Remove repeated numbering patterns
+    # Example: 1.1Introduction -> Introduction
+    text = re.sub(r'\b\d+(\.\d+)+', '', text)
 
-    # remove tabs
-    text = re.sub(r'\t+', ' ', text)
+    # Remove multiple dots/symbols
+    text = re.sub(r'[•●▪■]', ' ', text)
 
-    # remove unnecessary blank lines
-    text = text.strip()
+    # Remove repeated spaces again
+    text = re.sub(r'\s+', ' ', text)
 
-    return text
+    return text.strip()
 
 #function to detect sections based on keywords in the text, returns the section name or "general" if no specific section is detected
 def detect_section(text):
@@ -70,6 +77,31 @@ def create_metadata(file_path, page_num, section):
     }
 
     return metadata
+
+#FUNCTION TO FILTER NOISY PAGES BASED ON KEYWORDS, RETURNS TRUE IF PAGE IS USEFUL AND FALSE IF IT IS NOISY
+def is_useful_page(text):
+
+    noisy_keywords = [
+        "certificate",
+        "acknowledgement",
+        "table of contents",
+        "index",
+        "submitted by",
+        "approved by",
+        "department of",
+        "college for degree",
+        "visakhapatnam"
+    ]
+
+    text_lower = text.lower()
+
+    for keyword in noisy_keywords:
+
+        if keyword in text_lower:
+            return False
+
+    return True
+
 
 
 

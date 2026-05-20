@@ -7,6 +7,8 @@
 #| Maintain chunk overlap        | preserve continuity              |
 #| Attach metadata to chunks     | smarter retrieval                |
 #| Prepare chunks for embeddings | improve vector search            |
+#|Filter weak chunks             | improve retrieval quality        |
+
 
 #WHAT WE WILL BUILD
 
@@ -18,7 +20,9 @@
 #preserve metadata
 #create structured chunks
 
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from document_processor import (
     load_pdf,
     clean_text,
@@ -27,13 +31,38 @@ from document_processor import (
 )
 
 
+# Function to check whether chunk is meaningful
+def is_meaningful_chunk(text):
 
-#function to create chunks from cleaned text using RecursiveCharacterTextSplitter, returns a list of chunks
+    text = text.strip()
+
+    # Remove very tiny chunks
+    if len(text) < 80:
+        return False
+
+    # Remove chunks with too few words
+    if len(text.split()) < 15:
+        return False
+
+    return True
+
+
+# Function to create chunks from cleaned text
 def create_chunks(text, metadata):
 
     splitter = RecursiveCharacterTextSplitter(
+
         chunk_size=500,
-        chunk_overlap=100
+
+        chunk_overlap=100,
+
+        separators=[
+            "\n\n",
+            "\n",
+            ". ",
+            " ",
+            ""
+        ]
     )
 
     split_chunks = splitter.split_text(text)
@@ -42,8 +71,14 @@ def create_chunks(text, metadata):
 
     for chunk in split_chunks:
 
+        # Skip weak chunks
+        if not is_meaningful_chunk(chunk):
+            continue
+
         chunk_data = {
-            "content": chunk,
+
+            "content": chunk.strip(),
+
             "metadata": metadata
         }
 
@@ -51,24 +86,33 @@ def create_chunks(text, metadata):
 
     return chunks
 
+
+# Testing Section
 if __name__ == "__main__":
-        docs = load_pdf("GVP-MAAA DOCUMENTATION (1).pdf")
 
-        raw_text = docs[0].page_content
+    docs = load_pdf("GVP-MAAA DOCUMENTATION (1).pdf")
 
-        cleaned_text = clean_text(raw_text)
+    raw_text = docs[0].page_content
 
-        section = detect_section(cleaned_text)
+    cleaned_text = clean_text(raw_text)
 
-        metadata = create_metadata(
-            "GVP-MAAA DOCUMENTATION (1).pdf",
-            1,
-            section
-        )
+    section = detect_section(cleaned_text)
 
-        chunks = create_chunks(cleaned_text, metadata)
+    metadata = create_metadata(
+        "GVP-MAAA DOCUMENTATION (1).pdf",
+        1,
+        section
+    )
 
-        print(chunks[0])
+    chunks = create_chunks(
+        cleaned_text,
+        metadata
+    )
 
-        print("\nTOTAL CHUNKS:")
-        print(len(chunks))
+    print("FIRST CHUNK:\n")
+
+    print(chunks[0])
+
+    print("\nTOTAL CHUNKS:")
+
+    print(len(chunks))

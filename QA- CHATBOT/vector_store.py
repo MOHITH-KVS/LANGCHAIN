@@ -9,19 +9,27 @@
 #| Connect embeddings with retrieval | semantic RAG pipeline      |
 
 from langchain_community.vectorstores import FAISS
+
 from embeddings import embedding_model
+
 from chunking import create_chunks
+
 from document_processor import (
     load_pdf,
     clean_text,
     detect_section,
-    create_metadata
+    create_metadata,
+    is_useful_page
 )
 
-#function to create a FAISS vector store from chunks, returns the vector store
+from reranker import rerank_chunks
+
+
+# Function to create FAISS vector store
 def create_vector_store(chunks, embedding_model):
 
     vector_store = FAISS.from_texts(
+
         texts=[chunk["content"] for chunk in chunks],
 
         embedding=embedding_model,
@@ -31,54 +39,114 @@ def create_vector_store(chunks, embedding_model):
 
     return vector_store
 
-#function to perform similarity search on the vector store using a query, returns the top matching chunks
+
+# Function to retrieve relevant chunks
 def retrieve_chunks(vector_store, query):
 
     results = vector_store.similarity_search(
+
         query,
-        k=3
+
+        k=10
     )
 
     return results
 
-if __name__ == "__main__":
-        docs = load_pdf("GVP-MAAA DOCUMENTATION (1).pdf")
 
-        raw_text = docs[0].page_content
+# Testing Section
+if __name__ == "__main__":
+
+    docs = load_pdf(
+        "GVP-MAAA DOCUMENTATION (1).pdf"
+    )
+
+    all_chunks = []
+
+    for page_num, doc in enumerate(docs):
+
+        raw_text = doc.page_content
+
+        if not is_useful_page(raw_text):
+            continue
 
         cleaned_text = clean_text(raw_text)
 
         section = detect_section(cleaned_text)
 
         metadata = create_metadata(
+
             "GVP-MAAA DOCUMENTATION (1).pdf",
-            1,
+
+            page_num + 1,
+
             section
         )
 
-        chunks = create_chunks(cleaned_text, metadata)
+        chunks = create_chunks(
 
-        vector_store = create_vector_store(
-            chunks,
-            embedding_model
+            cleaned_text,
+
+            metadata
         )
 
-        print("VECTOR STORE CREATED SUCCESSFULLY")
+        all_chunks.extend(chunks)
 
-        query = "What is GVP-MAAA project?"
+    vector_store = create_vector_store(
+
+        all_chunks,
+
+        embedding_model
+    )
+
+    print("TOTAL CHUNKS:")
+
+    print(len(all_chunks))
+
+    test_queries = [
+
+        "What is GVP-MAAA project?",
+
+        "Explain the methodology",
+
+        "What technologies are used?",
+
+        "What is the objective of the project?",
+
+        "Explain the conclusion"
+    ]
+
+    for query in test_queries:
+
+        print(f"\nQUERY: {query}")
 
         results = retrieve_chunks(
+
             vector_store,
+
             query
         )
 
-        print("\nRETRIEVED CHUNKS:\n")
+        ranked_results = rerank_chunks(
 
-        for result in results:
+            query,
 
-            print(result.page_content)
+            results
+        )
+
+        print("\nRERANKED CHUNKS:\n")
+
+        for result, score in ranked_results[:3]:
+
+            print("RELEVANCE SCORE:")
+
+            print(score)
+
+            print("\nCHUNK:\n")
+
+            print(result.page_content[:500])
 
             print("\nMETADATA:")
+
             print(result.metadata)
 
             print("\n" + "="*50 + "\n")
