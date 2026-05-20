@@ -71,13 +71,17 @@ def create_chunks(text, metadata):
 
     for chunk in split_chunks:
 
-        # Skip weak chunks
-        if not is_meaningful_chunk(chunk):
-            continue
+        enhanced_chunk = f"""
+
+    SECTION: {metadata['section']}
+
+    {chunk}
+
+    """
 
         chunk_data = {
 
-            "content": chunk.strip(),
+            "content": enhanced_chunk,
 
             "metadata": metadata
         }

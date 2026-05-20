@@ -35,7 +35,9 @@ llm = ChatGroq(
 
     groq_api_key=os.getenv("GROQ_API_KEY"),
 
-    model_name="llama3-8b-8192"
+    model_name="llama-3.1-8b-instant",
+
+    temperature=0
 )
 
 
@@ -45,23 +47,27 @@ prompt_template = PromptTemplate(
 
     template="""
 
-You are an intelligent PDF question-answering assistant.
+You are an intelligent PDF Question Answering System.
 
-Answer the question ONLY from the provided context.
+Answer the user's question ONLY using the provided context.
 
-If the answer is not available in the context, say:
+IMPORTANT RULES:
 
-"I could not find relevant information in the document."
+1. Do NOT use outside knowledge.
+2. Do NOT make assumptions.
+3. Combine information from multiple retrieved chunks if needed.
+4. Give complete and meaningful answers.
+5. Explain clearly in well-structured sentences.
+6. If information is unavailable, say:
+   "The document does not contain enough information."
 
-DO NOT make up information.
-
-Context:
+CONTEXT:
 {context}
 
-Question:
+QUESTION:
 {question}
 
-Answer:
+ANSWER:
 
 """
 )
@@ -71,7 +77,11 @@ def generate_answer(question, reranked_chunks):
 
     context = "\n\n".join(
 
-        [chunk.page_content for chunk, score in reranked_chunks[:3]]
+        [
+            chunk.page_content[:700]
+
+            for chunk, score in reranked_chunks[:2]
+        ]
     )
 
     final_prompt = prompt_template.format(

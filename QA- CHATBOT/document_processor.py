@@ -47,25 +47,119 @@ def clean_text(text):
 #function to detect sections based on keywords in the text, returns the section name or "general" if no specific section is detected
 def detect_section(text):
 
-    text_upper = text.upper()
+    text_lower = text.lower()
 
-    if "ABSTRACT" in text_upper:
-        return "abstract"
+    section_keywords = {
 
-    elif "INTRODUCTION" in text_upper:
-        return "introduction"
+        "abstract": [
+            "abstract",
+            "project summary"
+        ],
 
-    elif "LITERATURE SURVEY" in text_upper:
-        return "literature_survey"
+        "introduction": [
+            "introduction",
+            "overview"
+        ],
 
-    elif "METHODOLOGY" in text_upper:
-        return "methodology"
+        "methodology": [
+            "methodology",
+            "proposed system",
+            "implementation"
+        ],
 
-    elif "CONCLUSION" in text_upper:
-        return "conclusion"
+        "architecture": [
+            "architecture",
+            "system architecture",
+            "design"
+        ],
 
-    else:
-        return "general"
+        "technologies": [
+            "technologies",
+            "tools used",
+            "tech stack"
+        ],
+
+        "conclusion": [
+            "conclusion",
+            "future work",
+            "results"
+        ]
+    }
+
+    for section, keywords in section_keywords.items():
+
+        for keyword in keywords:
+
+            if keyword in text_lower:
+
+                return section
+
+    return "general"
+
+
+import re
+
+def split_into_sections(text):
+
+    section_patterns = {
+
+        "abstract": r"\bABSTRACT\b",
+
+        "introduction": r"\bINTRODUCTION\b",
+
+        "methodology": r"\bMETHODOLOGY\b|\bIMPLEMENTATION\b",
+
+        "architecture": r"\bARCHITECTURE\b|\bSYSTEM DESIGN\b",
+
+        "technologies": r"\bTECHNOLOGIES\b|\bTOOLS USED\b",
+
+        "conclusion": r"\bCONCLUSION\b|\bFUTURE WORK\b"
+    }
+
+    matches = []
+
+    for section, pattern in section_patterns.items():
+
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+
+            matches.append({
+
+                "section": section,
+
+                "start": match.start()
+            })
+
+    matches = sorted(matches, key=lambda x: x["start"])
+
+    sections = []
+
+    for i in range(len(matches)):
+
+        start = matches[i]["start"]
+
+        end = matches[i + 1]["start"] if i + 1 < len(matches) else len(text)
+
+        section_name = matches[i]["section"]
+
+        section_content = text[start:end]
+
+        sections.append({
+
+            "section": section_name,
+
+            "content": section_content
+        })
+
+    if not sections:
+
+        sections.append({
+
+            "section": "general",
+
+            "content": text
+        })
+
+    return sections
 
 #function to create metadata for each document, including source file path, page number, and detected section
 def create_metadata(file_path, page_num, section):
@@ -77,30 +171,6 @@ def create_metadata(file_path, page_num, section):
     }
 
     return metadata
-
-#FUNCTION TO FILTER NOISY PAGES BASED ON KEYWORDS, RETURNS TRUE IF PAGE IS USEFUL AND FALSE IF IT IS NOISY
-def is_useful_page(text):
-
-    noisy_keywords = [
-        "certificate",
-        "acknowledgement",
-        "table of contents",
-        "index",
-        "submitted by",
-        "approved by",
-        "department of",
-        "college for degree",
-        "visakhapatnam"
-    ]
-
-    text_lower = text.lower()
-
-    for keyword in noisy_keywords:
-
-        if keyword in text_lower:
-            return False
-
-    return True
 
 
 
