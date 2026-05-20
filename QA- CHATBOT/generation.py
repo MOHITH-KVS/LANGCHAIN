@@ -43,7 +43,7 @@ llm = ChatGroq(
 
 prompt_template = PromptTemplate(
 
-    input_variables=["context", "question"],
+    input_variables=["context", "question", "conversation_context"],
 
     template="""
 
@@ -64,6 +64,9 @@ IMPORTANT RULES:
 CONTEXT:
 {context}
 
+PREVIOUS CONVERSATION:
+{conversation_context}
+
 QUESTION:
 {question}
 
@@ -73,7 +76,7 @@ ANSWER:
 )
 
 #function to generate answer from LLM using the prompt template, returns the generated answer
-def generate_answer(question, reranked_chunks):
+def generate_answer(question, reranked_chunks,conversation_context):
 
     context = "\n\n".join(
 
@@ -88,9 +91,40 @@ def generate_answer(question, reranked_chunks):
 
         context=context,
 
-        question=question
+        question=question,
+
+        conversation_context=conversation_context
     )
 
     response = llm.invoke(final_prompt)
 
-    return response.content
+    answer = response.content
+
+    sources = []
+
+    for chunk, score in reranked_chunks[:2]:
+
+        metadata = chunk.metadata
+
+        source_text = (
+
+            f"Page {metadata['page']} | "
+
+            f"Section: {metadata['section']}"
+        )
+
+        if source_text not in sources:
+
+            sources.append(source_text)
+
+    citations = "\n".join(sources)
+
+    final_answer = f"""
+
+    {answer}
+
+    SOURCES:
+    {citations}
+    """
+
+    return final_answer
