@@ -209,7 +209,19 @@ while True:
 
             for stored_chunk in all_chunks:
 
-                if stored_chunk.get("chunk_id") == nearby_id:
+                if (
+
+                    stored_chunk.get("chunk_id") == nearby_id
+
+                    and
+
+                    stored_chunk["metadata"]["section"]
+
+                    ==
+
+                    chunk.metadata["section"]
+
+                ):
 
                     content = stored_chunk["content"]
 
@@ -236,7 +248,6 @@ while True:
                         )
 
                         seen_chunks.add(unique_key)
-
 
     # =========================
     # DEBUG RETRIEVAL

@@ -74,18 +74,17 @@ def rewrite_query(
 
 
     # =========================
-    # SKIP REWRITING
+    # SECTION-AWARE REWRITING
     # =========================
 
-    # If question already contains
-    # important document section names,
-    # preserve original query.
+    # Convert short section queries
+    # into retrieval-friendly queries
 
     for section in document_sections:
 
         if section in question_lower:
 
-            return question
+            return f"Explain the {section} section of the document"
 
 
     # =========================
@@ -109,6 +108,8 @@ IMPORTANT RULES:
 7. Keep rewritten query closely related to the document.
 8. Do NOT answer the question.
 9. Output ONLY the rewritten query.
+10. If the user mentions a document section like abstract, conclusion, methodology, introduction, architecture, etc., preserve the exact section name clearly in the rewritten query.
+11. Expand short queries into retrieval-friendly document-oriented questions.
 
 PREVIOUS CONVERSATION:
 {conversation_context}
@@ -120,7 +121,7 @@ REWRITTEN QUERY:
 
 """
 
-    
+
     # =========================
     # LLM REWRITING
     # =========================
@@ -153,6 +154,10 @@ REWRITTEN QUERY:
 
     rewritten_lower = rewritten_query.lower()
 
+
+    # =========================
+    # FALLBACK SAFETY
+    # =========================
 
     # If important terms disappear,
     # fallback to original question.
