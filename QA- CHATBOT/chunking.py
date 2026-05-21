@@ -52,9 +52,9 @@ def create_chunks(text, metadata):
 
     splitter = RecursiveCharacterTextSplitter(
 
-        chunk_size=500,
+        chunk_size=1000,
 
-        chunk_overlap=100,
+        chunk_overlap=250,
 
         separators=[
             "\n\n",
@@ -69,7 +69,7 @@ def create_chunks(text, metadata):
 
     chunks = []
 
-    for chunk in split_chunks:
+    for idx, chunk in enumerate(split_chunks):
 
         enhanced_chunk = f"""
 
@@ -83,7 +83,9 @@ def create_chunks(text, metadata):
 
             "content": enhanced_chunk,
 
-            "metadata": metadata
+            "metadata": metadata,
+
+            "chunk_id": idx
         }
 
         chunks.append(chunk_data)

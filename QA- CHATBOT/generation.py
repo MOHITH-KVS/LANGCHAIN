@@ -20,6 +20,7 @@
 #send to LLM
 #return grounded answer
 
+
 from langchain_groq import ChatGroq
 
 from langchain_core.prompts import PromptTemplate
@@ -31,6 +32,11 @@ import os
 
 load_dotenv()
 
+
+# =========================
+# LLM
+# =========================
+
 llm = ChatGroq(
 
     groq_api_key=os.getenv("GROQ_API_KEY"),
@@ -41,9 +47,20 @@ llm = ChatGroq(
 )
 
 
+# =========================
+# PROMPT TEMPLATE
+# =========================
+
 prompt_template = PromptTemplate(
 
-    input_variables=["context", "question", "conversation_context"],
+    input_variables=[
+
+        "context",
+
+        "question",
+
+        "conversation_context"
+    ],
 
     template="""
 
@@ -61,31 +78,69 @@ IMPORTANT RULES:
 6. If information is unavailable, say:
    "The document does not contain enough information."
 
+
+IMPORTANT ANSWERING RULES:
+
+1. Do NOT omit names, entities, numbers, or list items from the retrieved context.
+2. Preserve complete factual information from the context.
+3. If multiple names or members are present, include ALL of them.
+4. Do NOT summarize entity lists.
+5. Answer ONLY from the retrieved context.
+6. Do NOT ignore relevant retrieved content.
+7. If the context contains a complete list, preserve the entire list.
+8. Do NOT shorten factual information.
+
+
 CONTEXT:
 {context}
+
 
 PREVIOUS CONVERSATION:
 {conversation_context}
 
+
 QUESTION:
 {question}
+
 
 ANSWER:
 
 """
 )
 
-#function to generate answer from LLM using the prompt template, returns the generated answer
-def generate_answer(question, reranked_chunks,conversation_context):
+
+# =========================
+# GENERATE ANSWER FUNCTION
+# =========================
+
+def generate_answer(
+
+    question,
+
+    reranked_chunks,
+
+    conversation_context
+):
+
+
+    # =========================
+    # CREATE CONTEXT
+    # =========================
 
     context = "\n\n".join(
 
         [
-            chunk.page_content[:700]
 
-            for chunk, score in reranked_chunks[:2]
+            chunk.page_content
+
+            for chunk, score in reranked_chunks[:5]
         ]
     )
+
+
+    # =========================
+    # BUILD FINAL PROMPT
+    # =========================
 
     final_prompt = prompt_template.format(
 
@@ -96,13 +151,24 @@ def generate_answer(question, reranked_chunks,conversation_context):
         conversation_context=conversation_context
     )
 
+
+    # =========================
+    # LLM GENERATION
+    # =========================
+
     response = llm.invoke(final_prompt)
 
     answer = response.content
 
+
+    # =========================
+    # SOURCE CITATIONS
+    # =========================
+
     sources = []
 
-    for chunk, score in reranked_chunks[:2]:
+
+    for chunk, score in reranked_chunks[:5]:
 
         metadata = chunk.metadata
 
@@ -113,18 +179,26 @@ def generate_answer(question, reranked_chunks,conversation_context):
             f"Section: {metadata['section']}"
         )
 
+
         if source_text not in sources:
 
             sources.append(source_text)
 
+
     citations = "\n".join(sources)
+
+
+    # =========================
+    # FINAL ANSWER
+    # =========================
 
     final_answer = f"""
 
-    {answer}
+{answer}
 
-    SOURCES:
-    {citations}
-    """
+SOURCES:
+{citations}
+"""
+
 
     return final_answer

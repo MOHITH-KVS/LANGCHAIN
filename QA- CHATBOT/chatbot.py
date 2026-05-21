@@ -4,26 +4,20 @@
 
 #| Responsibility              | Why                              |
 #| --------------------------- | -------------------------------- |
-#| Connect all modules         | end-to-end RAG pipeline          |
+#| Load saved vector database  | scalable retrieval system        |
 #| Handle user queries         | chatbot interaction              |
 #| Execute retrieval flow      | document question answering      |
 #| Generate grounded answers   | accurate PDF responses           |
 #| Create conversational loop  | interactive chatbot              |
 
 
-from document_processor import (
-    load_pdf,
-    clean_text,
-    create_metadata,
-    split_into_sections
-)
+from langchain_community.vectorstores import FAISS
 
-from chunking import create_chunks
+from langchain_core.documents import Document
 
 from embeddings import embedding_model
 
 from vector_store import (
-    create_vector_store,
     create_bm25_index,
     hybrid_retrieve
 )
@@ -34,6 +28,8 @@ from generation import generate_answer
 
 from query_rewriter import rewrite_query
 
+import pickle
+
 
 # =========================
 # DEBUG MODE
@@ -43,51 +39,12 @@ DEBUG = True
 
 
 # =========================
-# LOAD PDF
+# LOAD SAVED CHUNKS
 # =========================
 
-docs = load_pdf(
-    "GVP-MAAA DOCUMENTATION (1).pdf"
-)
+with open("chunks.pkl", "rb") as f:
 
-
-# =========================
-# CREATE CHUNKS
-# =========================
-
-all_chunks = []
-
-for page_num, doc in enumerate(docs):
-
-    raw_text = doc.page_content
-
-    cleaned_text = clean_text(raw_text)
-
-    sections = split_into_sections(cleaned_text)
-
-    for section_data in sections:
-
-        section_name = section_data["section"]
-
-        section_content = section_data["content"]
-
-        metadata = create_metadata(
-
-            "GVP-MAAA DOCUMENTATION (1).pdf",
-
-            page_num + 1,
-
-            section_name
-        )
-
-        chunks = create_chunks(
-
-            section_content,
-
-            metadata
-        )
-
-        all_chunks.extend(chunks)
+    all_chunks = pickle.load(f)
 
 
 print("\nTOTAL CHUNKS:")
@@ -95,13 +52,20 @@ print(len(all_chunks))
 
 
 # =========================
-# CREATE VECTOR STORE
+# LOAD SAVED FAISS DATABASE
 # =========================
 
-vector_store = create_vector_store(
-    all_chunks,
-    embedding_model
+vector_store = FAISS.load_local(
+
+    "faiss_index",
+
+    embedding_model,
+
+    allow_dangerous_deserialization=True
 )
+
+
+print("\nFAISS DATABASE LOADED SUCCESSFULLY")
 
 
 # =========================
@@ -109,6 +73,9 @@ vector_store = create_vector_store(
 # =========================
 
 bm25 = create_bm25_index(all_chunks)
+
+
+print("\nBM25 INDEX CREATED SUCCESSFULLY")
 
 
 # =========================
@@ -176,6 +143,7 @@ while True:
         conversation_context
     )
 
+
     print("\nREWRITTEN QUERY:")
     print(rewritten_query)
 
@@ -209,23 +177,82 @@ while True:
 
 
     # =========================
+    # CONTEXT EXPANSION
+    # =========================
+
+    expanded_chunks = []
+
+    seen_chunks = set()
+
+
+    for chunk, score in reranked_chunks[:3]:
+
+        current_chunk_id = chunk.metadata.get(
+
+            "chunk_id",
+
+            0
+        )
+
+
+        nearby_chunk_ids = [
+
+            current_chunk_id - 1,
+
+            current_chunk_id,
+
+            current_chunk_id + 1
+        ]
+
+
+        for nearby_id in nearby_chunk_ids:
+
+            for stored_chunk in all_chunks:
+
+                if stored_chunk.get("chunk_id") == nearby_id:
+
+                    content = stored_chunk["content"]
+
+                    metadata = stored_chunk["metadata"]
+
+                    unique_key = (
+
+                        metadata["page"],
+
+                        nearby_id
+                    )
+
+
+                    if unique_key not in seen_chunks:
+
+                        expanded_chunks.append(
+
+                            Document(
+
+                                page_content=content,
+
+                                metadata=metadata
+                            )
+                        )
+
+                        seen_chunks.add(unique_key)
+
+
+    # =========================
     # DEBUG RETRIEVAL
     # =========================
 
     if DEBUG:
 
-        print("\nDEBUG RETRIEVED CHUNKS:\n")
+        print("\nDEBUG EXPANDED CHUNKS:\n")
 
-        for chunk, score in reranked_chunks[:3]:
+        for chunk in expanded_chunks[:5]:
 
             print("SECTION:")
             print(chunk.metadata)
 
             print("\nCONTENT:")
             print(chunk.page_content[:500])
-
-            print("\nSCORE:")
-            print(score)
 
             print("\n" + "=" * 50)
 
@@ -238,7 +265,7 @@ while True:
 
         question,
 
-        reranked_chunks,
+        [(chunk, 0) for chunk in expanded_chunks],
 
         conversation_context
     )

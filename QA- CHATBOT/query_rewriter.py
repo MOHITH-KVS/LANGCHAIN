@@ -19,13 +19,49 @@ import os
 load_dotenv()
 
 
+# =========================
+# LLM
+# =========================
+
 llm = ChatGroq(
 
     groq_api_key=os.getenv("GROQ_API_KEY"),
 
-    model_name="llama-3.3-70b-versatile"
+    model_name="llama-3.3-70b-versatile",
+
+    temperature=0
 )
 
+
+# =========================
+# DOCUMENT SECTION KEYWORDS
+# =========================
+
+document_sections = [
+
+    "abstract",
+
+    "introduction",
+
+    "methodology",
+
+    "architecture",
+
+    "conclusion",
+
+    "technologies",
+
+    "results",
+
+    "implementation",
+
+    "objectives"
+]
+
+
+# =========================
+# QUERY REWRITING FUNCTION
+# =========================
 
 def rewrite_query(
 
@@ -34,18 +70,45 @@ def rewrite_query(
     conversation_context
 ):
 
+    question_lower = question.lower()
+
+
+    # =========================
+    # SKIP REWRITING
+    # =========================
+
+    # If question already contains
+    # important document section names,
+    # preserve original query.
+
+    for section in document_sections:
+
+        if section in question_lower:
+
+            return question
+
+
+    # =========================
+    # QUERY REWRITING PROMPT
+    # =========================
+
     prompt = f"""
 
-You are a query rewriting system for RAG retrieval.
+You are a query rewriting system for PDF document retrieval.
 
-Your job is to rewrite vague user questions into clear and retrieval-optimized queries.
+Your ONLY job is to improve retrieval quality for the uploaded document.
 
-IMPORTANT:
-- Preserve original meaning.
-- Use conversation context if necessary.
-- Keep rewritten query concise.
-- Do not answer the question.
-- Only rewrite the query.
+IMPORTANT RULES:
+
+1. NEVER change the meaning of the user's question.
+2. NEVER convert document section names into general concepts.
+3. Preserve important keywords exactly.
+4. Preserve names, headings, and technical terms.
+5. Rewrite ONLY if the question is vague.
+6. Keep rewritten query concise.
+7. Keep rewritten query closely related to the document.
+8. Do NOT answer the question.
+9. Output ONLY the rewritten query.
 
 PREVIOUS CONVERSATION:
 {conversation_context}
@@ -57,6 +120,52 @@ REWRITTEN QUERY:
 
 """
 
+    
+    # =========================
+    # LLM REWRITING
+    # =========================
+
     response = llm.invoke(prompt)
 
-    return response.content.strip()
+    rewritten_query = response.content.strip()
+
+
+    # =========================
+    # SAFETY CHECK
+    # =========================
+
+    important_terms = [
+
+        "gvp-maaa",
+
+        "abstract",
+
+        "methodology",
+
+        "architecture",
+
+        "conclusion",
+
+        "technologies"
+    ]
+
+    original_lower = question.lower()
+
+    rewritten_lower = rewritten_query.lower()
+
+
+    # If important terms disappear,
+    # fallback to original question.
+
+    for term in important_terms:
+
+        if term in original_lower and term not in rewritten_lower:
+
+            return question
+
+
+    # =========================
+    # FINAL QUERY
+    # =========================
+
+    return rewritten_query
