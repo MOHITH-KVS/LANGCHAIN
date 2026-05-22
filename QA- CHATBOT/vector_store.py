@@ -8,6 +8,7 @@
 #| Create FAISS index                | fast vector search                 |
 #| Perform hybrid retrieval          | semantic + keyword retrieval       |
 #| Apply metadata filtering          | retrieval precision improvement    |
+#| Support document routing          | hierarchical retrieval             |
 #| Return relevant chunks            | contextual retrieval               |
 #| Connect retrieval with RAG        | industrial RAG pipeline            |
 
@@ -125,6 +126,8 @@ def hybrid_retrieve(
 
     query,
 
+    source_filter=None,
+
     k=5
 ):
 
@@ -137,7 +140,34 @@ def hybrid_retrieve(
 
 
     # =========================
-    # FILTER CHUNKS
+    # INITIAL FILTER
+    # =========================
+
+    filtered_chunks = all_chunks
+
+
+    # =========================
+    # SOURCE FILTER
+    # =========================
+
+    if source_filter:
+
+        filtered_chunks = [
+
+            chunk
+
+            for chunk in filtered_chunks
+
+            if chunk["metadata"]["source"]
+
+            ==
+
+            source_filter
+        ]
+
+
+    # =========================
+    # SECTION FILTER
     # =========================
 
     if section_filter:
@@ -146,7 +176,7 @@ def hybrid_retrieve(
 
             chunk
 
-            for chunk in all_chunks
+            for chunk in filtered_chunks
 
             if chunk["metadata"]["section"]
 
@@ -154,10 +184,6 @@ def hybrid_retrieve(
 
             section_filter
         ]
-
-    else:
-
-        filtered_chunks = all_chunks
 
 
     # =========================
@@ -168,7 +194,7 @@ def hybrid_retrieve(
 
         query,
 
-        k=k
+        k=k * 3
     )
 
 
@@ -177,13 +203,36 @@ def hybrid_retrieve(
 
     for doc in semantic_results:
 
+        source_match = True
+
+        section_match = True
+
+
+        if source_filter:
+
+            source_match = (
+
+                doc.metadata["source"]
+
+                ==
+
+                source_filter
+            )
+
+
         if section_filter:
 
-            if doc.metadata["section"] == section_filter:
+            section_match = (
 
-                semantic_docs.append(doc)
+                doc.metadata["section"]
 
-        else:
+                ==
+
+                section_filter
+            )
+
+
+        if source_match and section_match:
 
             semantic_docs.append(doc)
 
@@ -194,7 +243,19 @@ def hybrid_retrieve(
 
     bm25_query = query.split()
 
-    bm25_scores = bm25.get_scores(bm25_query)
+
+    filtered_texts = [
+
+        chunk["content"].split()
+
+        for chunk in filtered_chunks
+    ]
+
+
+    filtered_bm25 = BM25Okapi(filtered_texts)
+
+
+    bm25_scores = filtered_bm25.get_scores(bm25_query)
 
 
     bm25_ranked = sorted(
@@ -240,6 +301,8 @@ def hybrid_retrieve(
     for doc in semantic_docs + bm25_docs:
 
         unique_key = (
+
+            doc.metadata.get("source", ""),
 
             doc.metadata.get("page", -1),
 

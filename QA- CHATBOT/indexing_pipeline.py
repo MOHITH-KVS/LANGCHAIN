@@ -2,31 +2,29 @@
 
 # This file should ONLY:
 
-#| Responsibility            | Why                           |
-#| ------------------------- | ----------------------------- |
-#| Process PDFs              | indexing pipeline             |
-#| Create embeddings         | semantic vector generation    |
-#| Build FAISS index         | retrieval preparation         |
-#| Save vector database      | persistent storage            |
-#| Prepare chatbot knowledge | scalable RAG architecture     |
+#| Responsibility              | Why                              |
+#| --------------------------- | -------------------------------- |
+#| Load multiple PDFs          | scalable ingestion pipeline      |
+#| Clean document text         | improve chunk quality            |
+#| Generate semantic chunks    | stronger retrieval               |
+#| Create embeddings           | vector retrieval                 |
+#| Build FAISS database        | scalable semantic search         |
+#| Save vector database        | persistent RAG system            |
+#| Create document registry    | hierarchical retrieval           |
 
-#GOAL OF THIS FILE
 
-#This file should ONLY:
+import os
 
-#| Responsibility            | Why                           |
-#| ------------------------- | ----------------------------- |
-#| Process PDFs              | indexing pipeline             |
-#| Create embeddings         | semantic vector generation    |
-#| Build FAISS index         | retrieval preparation         |
-#| Save vector database      | persistent storage            |
-#| Prepare chatbot knowledge | scalable RAG architecture     |
-
+import pickle
 
 from document_processor import (
+
     load_pdf,
+
     clean_text,
+
     create_metadata,
+
     split_into_sections
 )
 
@@ -36,58 +34,155 @@ from embeddings import embedding_model
 
 from vector_store import create_vector_store
 
-import pickle
+
+# =========================
+# DOCUMENTS FOLDER
+# =========================
+
+DOCUMENTS_FOLDER = "documents"
 
 
 # =========================
-# LOAD PDF
-# =========================
-
-docs = load_pdf(
-    "GVP-MAAA DOCUMENTATION (1).pdf"
-)
-
-
-# =========================
-# CREATE CHUNKS
+# ALL CHUNKS
 # =========================
 
 all_chunks = []
 
-for page_num, doc in enumerate(docs):
+global_chunk_id = 0
 
-    raw_text = doc.page_content
 
-    cleaned_text = clean_text(raw_text)
+# =========================
+# DOCUMENT REGISTRY
+# =========================
 
-    sections = split_into_sections(cleaned_text)
+document_registry = {}
 
-    for section_data in sections:
 
-        section_name = section_data["section"]
+# =========================
+# LOAD ALL PDF FILES
+# =========================
 
-        section_content = section_data["content"]
+pdf_files = [
 
-        metadata = create_metadata(
+    file
 
-            "GVP-MAAA DOCUMENTATION (1).pdf",
+    for file in os.listdir(DOCUMENTS_FOLDER)
 
-            page_num + 1,
+    if file.endswith(".pdf")
+]
 
-            section_name
-        )
 
-        chunks = create_chunks(
+print("\nTOTAL PDF FILES:")
 
-            section_content,
+print(len(pdf_files))
 
-            metadata
-        )
 
-        all_chunks.extend(chunks)
+# =========================
+# PROCESS EACH PDF
+# =========================
 
+for pdf_file in pdf_files:
+
+    print(f"\nPROCESSING: {pdf_file}")
+
+
+    pdf_path = os.path.join(
+
+        DOCUMENTS_FOLDER,
+
+        pdf_file
+    )
+
+
+    docs = load_pdf(pdf_path)
+
+
+    # =========================
+    # DOCUMENT SUMMARY
+    # =========================
+
+    document_summary = ""
+
+
+    # =========================
+    # PROCESS PAGES
+    # =========================
+
+    for page_num, doc in enumerate(docs):
+
+        raw_text = doc.page_content
+
+        cleaned_text = clean_text(raw_text)
+
+
+        sections = split_into_sections(cleaned_text)
+
+
+        # =========================
+        # PROCESS SECTIONS
+        # =========================
+
+        for section_data in sections:
+
+            section_name = section_data["section"]
+
+            section_content = section_data["content"]
+
+
+            metadata = create_metadata(
+
+                pdf_file,
+
+                page_num + 1,
+
+                section_name
+            )
+
+
+            chunks = create_chunks(
+
+                section_content,
+
+                metadata
+            )
+
+
+            # =========================
+            # GLOBAL CHUNK IDS
+            # =========================
+
+            for chunk in chunks:
+
+                chunk["chunk_id"] = global_chunk_id
+
+                global_chunk_id += 1
+
+
+            all_chunks.extend(chunks)
+
+
+            # =========================
+            # BUILD DOCUMENT SUMMARY
+            # =========================
+
+            if len(document_summary) < 3000:
+
+                document_summary += " " + section_content
+
+
+    # =========================
+    # SAVE DOCUMENT SUMMARY
+    # =========================
+
+    document_registry[pdf_file] = document_summary[:3000]
+
+
+# =========================
+# TOTAL CHUNKS
+# =========================
 
 print("\nTOTAL CHUNKS:")
+
 print(len(all_chunks))
 
 
@@ -96,7 +191,9 @@ print(len(all_chunks))
 # =========================
 
 vector_store = create_vector_store(
+
     all_chunks,
+
     embedding_model
 )
 
@@ -117,4 +214,16 @@ with open("chunks.pkl", "wb") as f:
     pickle.dump(all_chunks, f)
 
 
-print("\nVECTOR DATABASE SAVED SUCCESSFULLY")
+# =========================
+# SAVE DOCUMENT REGISTRY
+# =========================
+
+with open("document_registry.pkl", "wb") as f:
+
+    pickle.dump(document_registry, f)
+
+
+print("\nDOCUMENT REGISTRY CREATED")
+
+
+print("\nMULTI-DOCUMENT INDEXING COMPLETED")
