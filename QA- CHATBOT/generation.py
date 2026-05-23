@@ -275,17 +275,15 @@ def generate_answer(
     citations = "\n".join(sources)
 
 
-    # =========================
+    
+
+# =========================
     # FINAL ANSWER
     # =========================
 
-    final_answer = f"""
+    return {
 
-{answer}
+        "answer": answer,
 
-SOURCES:
-{citations}
-"""
-
-
-    return final_answer
+        "sources": sources
+    }

@@ -464,7 +464,7 @@ def ask_question(question):
     # GENERATE ANSWER
     # =========================
 
-    answer = generate_answer(
+    generation_result = generate_answer(
 
         question,
 
@@ -482,7 +482,9 @@ def ask_question(question):
 
         "question": question,
 
-        "answer": answer
+        "answer": generation_result["answer"],
+
+        "sources": generation_result["sources"]
     })
 
 
@@ -498,11 +500,15 @@ def ask_question(question):
 
         "document": selected_document,
 
-        "document_score": round(document_score, 4),
+        "document_score": float(document_score)
+        if document_score is not None
+        else None,
 
-        "rerank_score": round(top_rerank_score, 4),
+        "rerank_score": float(top_rerank_score)
+        if top_rerank_score is not None
+        else None,
 
-        "context_tokens": current_token_count,
+        "context_tokens": int(current_token_count),
 
         "answer": answer
     }

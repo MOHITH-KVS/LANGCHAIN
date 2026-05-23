@@ -1,6 +1,7 @@
 cd "QA- CHATBOT"
 .\venv\Scripts\activate
 
+uvicorn api.main:app --reload
 
 | File Changed           | Re-run What?         |
 | ---------------------- | -------------------- |

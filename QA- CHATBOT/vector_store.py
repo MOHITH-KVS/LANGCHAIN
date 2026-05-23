@@ -56,6 +56,72 @@ def create_vector_store(
 
 
 # =========================
+# LOAD VECTOR STORE
+# =========================
+
+def load_vector_store(
+
+    embedding_model,
+
+    faiss_path="faiss_index"
+):
+
+    vector_store = FAISS.load_local(
+
+        faiss_path,
+
+        embedding_model,
+
+        allow_dangerous_deserialization=True
+    )
+
+    return vector_store
+
+
+# =========================
+# ADD DOCUMENTS TO VECTOR STORE
+# =========================
+
+def add_documents_to_vector_store(
+
+    vector_store,
+
+    chunks
+):
+
+    texts = [
+
+        chunk["content"]
+
+        for chunk in chunks
+    ]
+
+
+    metadatas = [
+
+        {
+
+            **chunk["metadata"],
+
+            "chunk_id": chunk["chunk_id"]
+        }
+
+        for chunk in chunks
+    ]
+
+
+    vector_store.add_texts(
+
+        texts=texts,
+
+        metadatas=metadatas
+    )
+
+
+    return vector_store
+
+
+# =========================
 # CREATE BM25 INDEX
 # =========================
 
