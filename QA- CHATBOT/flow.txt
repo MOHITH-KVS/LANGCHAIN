@@ -1,0 +1,535 @@
+PDF INGESTION
+↓
+DOCUMENT PROCESSING
+↓
+SEMANTIC CHUNKING
+↓
+EMBEDDINGS
+↓
+VECTOR STORAGE
+↓
+DOCUMENT ROUTING
+↓
+HYBRID RETRIEVAL
+↓
+RERANKING
+↓
+RETRIEVAL VALIDATION
+↓
+CONTEXT COMPRESSION
+↓
+SEMANTIC PACKING
+↓
+TOKEN BUDGETING
+↓
+GROUNDED GENERATION
+↓
+FINAL ANSWER
+
+
+
+
+
+
+
+NOW FULL DETAILED FLOW
+STAGE 1 — PDF INGESTION
+FILE:
+indexing_pipeline.py
+WHAT HAPPENS?
+
+User uploads PDFs into:
+
+documents/
+
+Example:
+
+documents/
+├── Research.pdf
+├── Resume.pdf
+├── Invoice.pdf
+PURPOSE
+
+Prepare documents for:
+
+semantic retrieval
+
+Very important.
+
+STEP 1.1 — LOAD PDF
+FILE:
+document_processor.py
+
+Function:
+
+load_pdf()
+WHAT IT DOES
+
+Reads:
+
+pages
+text
+PDF contents
+
+using PDF loader.
+
+Output:
+
+Document objects
+STEP 1.2 — CLEAN TEXT
+
+Function:
+
+clean_text()
+WHY?
+
+Raw PDFs contain:
+
+weird spaces
+broken lines
+OCR noise
+formatting junk
+
+Cleaning improves:
+
+embedding quality
+
+Very important.
+
+STEP 1.3 — SECTION DETECTION
+
+Function:
+
+split_into_sections()
+WHAT IT DOES
+
+Detects sections like:
+
+abstract
+methodology
+conclusion
+technologies
+WHY IMPORTANT?
+
+Later enables:
+
+metadata-aware retrieval
+
+Very important enterprise feature.
+
+STEP 1.4 — METADATA CREATION
+
+Function:
+
+create_metadata()
+
+Creates:
+
+{
+   "source": "Research.pdf",
+   "page": 12,
+   "section": "methodology"
+}
+
+VERY important.
+
+This powers:
+
+filtering
+routing
+citations
+semantic packing
+STAGE 2 — SEMANTIC CHUNKING
+FILE:
+chunking.py
+WHAT HAPPENS?
+
+Large text split into:
+
+semantic chunks
+
+NOT random fixed splitting.
+
+WHY?
+
+LLMs + embeddings work better with:
+
+meaningful semantic units
+
+Very important.
+
+EXAMPLE
+BEFORE
+200-page document
+
+BAD for embeddings.
+
+AFTER
+chunk1 → methodology intro
+chunk2 → methodology continuation
+chunk3 → architecture explanation
+
+Much better retrieval.
+
+STAGE 3 — EMBEDDINGS
+FILE:
+embeddings.py
+WHAT HAPPENS?
+
+Each chunk converted into:
+
+vector embeddings
+
+Example:
+
+[0.182, -0.992, 0.441, ...]
+WHY?
+
+Enables:
+
+semantic similarity search
+
+Very important.
+
+EXAMPLE
+
+Query:
+
+Explain methodology
+
+Retriever can match:
+
+research methods
+implementation approach
+
+even without exact keywords.
+
+Huge capability.
+
+STAGE 4 — VECTOR DATABASE
+FILE:
+vector_store.py
+WHAT HAPPENS?
+
+Embeddings stored inside:
+
+FAISS vector database
+WHY?
+
+Enables:
+
+fast semantic retrieval
+
+instead of:
+
+manual scanning
+
+Very important.
+
+STAGE 5 — BM25 INDEXING
+
+Also:
+
+vector_store.py
+WHAT HAPPENS?
+
+Builds:
+
+keyword retrieval system
+
+using:
+
+BM25
+WHY?
+
+Embeddings alone are insufficient.
+
+BM25 helps exact terms like:
+
+names
+IDs
+technical keywords
+
+Very important hybrid retrieval technique.
+
+STAGE 6 — SAVE DATABASE
+FILE:
+indexing_pipeline.py
+
+Saves:
+
+FAISS DB
+chunks.pkl
+WHY?
+
+Avoid rebuilding embeddings every run.
+
+Huge efficiency improvement.
+
+STAGE 7 — CHATBOT STARTUP
+FILE:
+chatbot.py
+WHAT HAPPENS?
+
+Loads:
+
+vector DB
+chunks
+indexes
+STAGE 8 — METADATA INDEXING
+
+Creates:
+
+source_index
+section_index
+chunk_id_index
+WHY?
+
+Enables:
+
+instant metadata lookup
+
+instead of:
+
+for chunk in all_chunks
+
+Huge scalability improvement.
+
+STAGE 9 — USER QUERY
+
+Example:
+
+Explain methodology
+STAGE 10 — QUERY REWRITING
+FILE:
+query_rewriter.py
+WHAT HAPPENS?
+
+LLM improves retrieval query.
+
+EXAMPLE
+USER
+explain abstract
+REWRITTEN
+Explain the abstract section of the document
+
+Much better retrieval.
+
+WHY?
+
+Improves:
+
+semantic retrieval quality
+
+Very important.
+
+STAGE 11 — DOCUMENT ROUTING
+FILE:
+document_router.py
+WHAT HAPPENS?
+
+System predicts:
+
+best matching document
+EXAMPLE
+
+Query:
+
+Explain invoice total
+
+Router selects:
+
+Invoice.pdf
+
+Very important.
+
+WHY?
+
+Prevents:
+
+cross-document retrieval noise
+
+Huge enterprise improvement.
+
+STAGE 12 — HYBRID RETRIEVAL
+FILE:
+vector_store.py
+WHAT HAPPENS?
+
+Combines:
+
+semantic retrieval (FAISS)
+keyword retrieval (BM25)
+WHY?
+
+Embeddings good for:
+
+meaning
+
+BM25 good for:
+
+exact terms
+
+Together:
+
+stronger retrieval
+
+Very important enterprise technique.
+
+STAGE 13 — SECTION FILTERING
+
+If query mentions:
+
+methodology
+
+System filters:
+
+only methodology chunks
+
+Huge precision improvement.
+
+STAGE 14 — RERANKING
+FILE:
+reranker.py
+WHAT HAPPENS?
+
+Cross-encoder reranker re-scores chunks.
+
+WHY?
+
+Initial retrieval may still contain noise.
+
+Reranker improves:
+
+retrieval precision
+
+Very important enterprise technique.
+
+STAGE 15 — RETRIEVAL VALIDATION
+FILE:
+chatbot.py
+WHAT HAPPENS?
+
+Checks:
+
+Are scores good enough?
+WHY?
+
+Prevents:
+
+hallucinations
+
+Very important.
+
+STAGE 16 — SMART CONTEXT SELECTION
+
+Keeps only:
+
+high-confidence chunks
+
+using:
+
+relevance thresholds
+relative score filtering
+WHY?
+
+Removes:
+
+noisy chunks
+
+Very important.
+
+STAGE 17 — SEMANTIC CONTEXT PACKING
+
+Groups:
+
+semantically related chunks
+
+instead of random chunks.
+
+WHY?
+
+Improves:
+
+answer completeness
+
+Very important.
+
+STAGE 18 — TOKEN BUDGETING
+
+Controls:
+
+context size
+
+using:
+
+MAX_CONTEXT_TOKENS
+WHY?
+
+Prevents:
+
+token overflow
+latency explosion
+expensive prompts
+
+Very important production optimization.
+
+STAGE 19 — ANSWER GENERATION
+FILE:
+generation.py
+WHAT HAPPENS?
+
+LLM receives:
+
+compressed context
+grounded chunks
+user question
+IMPORTANT
+
+Prompt forces:
+
+grounded answering only
+
+Very important hallucination prevention.
+
+STAGE 20 — SOURCE CITATIONS
+
+Answer includes:
+
+Page 7 | Section: methodology
+WHY?
+
+Provides:
+
+explainability
+
+Very important enterprise requirement.
+
+FINAL RESULT
+
+User receives:
+
+grounded contextual answer
+
+NOT generic LLM answer.
+
+Very important distinction.
+
+YOUR SYSTEM NOW CONTAINS
+
+✅ PDF ingestion
+✅ semantic chunking
+✅ metadata-aware retrieval
+✅ embeddings
+✅ FAISS vector DB
+✅ BM25 retrieval
+✅ hybrid retrieval
+✅ query rewriting
+✅ document routing
+✅ reranking
+✅ hallucination prevention
+✅ semantic context packing
+✅ token budgeting
+✅ metadata indexing
+✅ grounded generation
+✅ source citations

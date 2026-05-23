@@ -1,18 +1,13 @@
-#GOAL OF THIS FILE
+# GOAL OF THIS FILE
 
-#This file should ONLY:
+# This file should ONLY:
 
 #| Responsibility              | Why                              |
 #| --------------------------- | -------------------------------- |
-#| Load saved vector database  | scalable retrieval system        |
-#| Handle user queries         | chatbot interaction              |
-#| Execute hierarchical RAG    | enterprise retrieval orchestration |
-#| Perform document routing    | multi-document precision         |
-#| Validate retrieval quality  | hallucination prevention         |
-#| Compress retrieval context  | efficient grounded generation    |
-#| Perform semantic packing    | coherent answer generation       |
-#| Generate grounded answers   | accurate PDF responses           |
-#| Create conversational loop  | interactive chatbot              |
+#| Load RAG resources          | reusable backend engine          |
+#| Execute retrieval pipeline  | centralized orchestration        |
+#| Generate grounded answers   | production AI backend            |
+#| Return structured responses | API-ready architecture           |
 
 
 from langchain_community.vectorstores import FAISS
@@ -42,13 +37,6 @@ import tiktoken
 
 
 # =========================
-# DEBUG MODE
-# =========================
-
-DEBUG = True
-
-
-# =========================
 # TOKENIZER
 # =========================
 
@@ -59,14 +47,13 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 # RETRIEVAL SETTINGS
 # =========================
 
-MIN_RELEVANCE_SCORE = 2.0
+MIN_RELEVANCE_SCORE = 0.3
 
 MAX_CONTEXT_CHUNKS = 5
 
 RELATIVE_SCORE_THRESHOLD = 0.55
 
 MAX_CONTEXT_TOKENS = 1800
-
 
 # =========================
 # TOKEN COUNT FUNCTION
@@ -79,7 +66,6 @@ def count_tokens(text):
         tokenizer.encode(text)
     )
 
-
 # =========================
 # LOAD SAVED CHUNKS
 # =========================
@@ -88,13 +74,6 @@ with open("chunks.pkl", "rb") as f:
 
     all_chunks = pickle.load(f)
 
-    source_index = {}
-    section_index = {}
-    chunk_id_index = {}
-
-print("\nTOTAL CHUNKS:")
-
-print(len(all_chunks))
 
 # =========================
 # METADATA INDEXES
@@ -116,9 +95,7 @@ for chunk in all_chunks:
     chunk_id = chunk["chunk_id"]
 
 
-    # =========================
     # SOURCE INDEX
-    # =========================
 
     if source not in source_index:
 
@@ -128,9 +105,7 @@ for chunk in all_chunks:
     source_index[source].append(chunk)
 
 
-    # =========================
     # SECTION INDEX
-    # =========================
 
     section_key = (source, section)
 
@@ -143,18 +118,13 @@ for chunk in all_chunks:
     section_index[section_key].append(chunk)
 
 
-    # =========================
     # CHUNK ID INDEX
-    # =========================
 
     chunk_id_index[chunk_id] = chunk
 
 
-print("\nMETADATA INDEXES CREATED")
-
-
 # =========================
-# LOAD FAISS DATABASE
+# LOAD VECTOR DATABASE
 # =========================
 
 vector_store = FAISS.load_local(
@@ -167,18 +137,11 @@ vector_store = FAISS.load_local(
 )
 
 
-print("\nFAISS DATABASE LOADED SUCCESSFULLY")
-
-
 # =========================
 # CREATE BM25 INDEX
 # =========================
 
 bm25 = create_bm25_index(all_chunks)
-
-
-print("\nBM25 INDEX CREATED SUCCESSFULLY")
-
 
 # =========================
 # CHAT MEMORY
@@ -188,34 +151,22 @@ chat_history = []
 
 
 # =========================
-# CHATBOT LOOP
+# MAIN CHATBOT FUNCTION
 # =========================
 
-while True:
-
-    question = input("\nAsk Question: ")
+def ask_question(question):
 
 
     # =========================
-    # EMPTY QUESTION HANDLING
+    # EMPTY QUESTION CHECK
     # =========================
 
     if not question.strip():
 
-        print("\nPlease enter a valid question.")
+        return {
 
-        continue
-
-
-    # =========================
-    # EXIT HANDLING
-    # =========================
-
-    if question.lower() in ["exit", "quit", "bye"]:
-
-        print("\nChatbot session ended.")
-
-        break
+            "answer": "Please enter a valid question."
+        }
 
 
     # =========================
@@ -247,11 +198,6 @@ while True:
     )
 
 
-    print("\nREWRITTEN QUERY:")
-
-    print(rewritten_query)
-
-
     # =========================
     # DOCUMENT ROUTING
     # =========================
@@ -278,16 +224,6 @@ while True:
         selected_document = None
 
 
-        print("\nSELECTED DOCUMENT:")
-
-        print(selected_document)
-
-
-    print("\nDOCUMENT MATCH SCORE:")
-
-    print(round(document_score, 4))
-
-
     # =========================
     # HYBRID RETRIEVAL
     # =========================
@@ -312,10 +248,30 @@ while True:
 
     reranked_chunks = rerank_chunks(
 
+
         rewritten_query,
 
         retrieved_chunks
     )
+
+    # =========================
+    # DEBUG RETRIEVED CHUNKS
+    # =========================
+
+    print("\nDEBUG RETRIEVED CHUNKS:\n")
+
+    for chunk, score in reranked_chunks[:3]:
+
+        print("SECTION:")
+        print(chunk.metadata)
+
+        print("\nCONTENT:")
+        print(chunk.page_content[:400])
+
+        print("\nSCORE:")
+        print(score)
+
+        print("\n" + "=" * 50)
 
 
     # =========================
@@ -324,40 +280,16 @@ while True:
 
     if len(reranked_chunks) == 0:
 
-        print("\nANSWER:\n")
+        return {
 
-        print(
-
-            "No relevant information found in the uploaded documents."
-        )
-
-        continue
+            "answer": "No relevant information found."
+        }
 
 
     top_rerank_score = reranked_chunks[0][1]
 
 
-    print("\nTOP RERANK SCORE:")
-
-    print(round(top_rerank_score, 4))
-
-
-    # =========================
-    # LOW CONFIDENCE DETECTION
-    # =========================
-
-    if top_rerank_score < MIN_RELEVANCE_SCORE:
-
-        print("\nANSWER:\n")
-
-        print(
-
-            "The uploaded documents do not contain enough relevant information."
-        )
-
-        continue
-
-
+    
     # =========================
     # STABLE CONTEXT PACKING
     # =========================
@@ -541,6 +473,7 @@ while True:
         conversation_context
     )
 
+
     # =========================
     # SAVE CHAT HISTORY
     # =========================
@@ -551,3 +484,34 @@ while True:
 
         "answer": answer
     })
+
+
+    # =========================
+    # RETURN RESPONSE
+    # =========================
+
+    return {
+
+        "question": question,
+
+        "rewritten_query": rewritten_query,
+
+        "document": selected_document,
+
+        "document_score": round(document_score, 4),
+
+        "rerank_score": round(top_rerank_score, 4),
+
+        "context_tokens": current_token_count,
+
+        "answer": answer
+    }
+
+if __name__ == "__main__":
+
+    response = ask_question(
+
+        "Explain abstract"
+    )
+
+    print(response)

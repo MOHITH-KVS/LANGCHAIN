@@ -1,6 +1,6 @@
-#GOAL OF THIS FILE
+# GOAL OF THIS FILE
 
-#This file should ONLY:
+# This file should ONLY:
 
 #| Responsibility              | Why                             |
 #| --------------------------- | ------------------------------- |
@@ -9,16 +9,17 @@
 #| Generate final answers      | conversational document QA      |
 #| Restrict answers to context | industrial RAG reliability      |
 
-#WHAT THIS FILE WILL DO
 
-#It will:
+# WHAT THIS FILE WILL DO
 
-#receive user query
-#receive reranked chunks
-#combine chunks into context
-#build prompt
-#send to LLM
-#return grounded answer
+# It will:
+# receive user query
+# receive retrieved chunks
+# combine chunks into context
+# build grounded prompt
+# synthesize contextual answer
+# generate structured response
+# return final grounded answer
 
 
 from langchain_groq import ChatGroq
@@ -64,46 +65,99 @@ prompt_template = PromptTemplate(
 
     template="""
 
-You are an intelligent PDF Question Answering System.
+You are an advanced Retrieval-Augmented Generation (RAG) assistant.
 
-Answer the user's question ONLY using the provided context.
+Your task is to answer the user's question ONLY using the provided retrieved context.
 
-IMPORTANT RULES:
+You must generate answers that are:
+- grounded
+- accurate
+- contextual
+- clearly explained
+- professionally written
 
-1. Do NOT use outside knowledge.
-2. Do NOT make assumptions.
-3. Combine information from multiple retrieved chunks if needed.
-4. Give complete and meaningful answers.
-5. Explain clearly in well-structured sentences.
-6. If information is unavailable, say:
-   "The document does not contain enough information."
-
-
-IMPORTANT ANSWERING RULES:
-
-1. Do NOT omit names, entities, numbers, or list items from the retrieved context.
-2. Preserve complete factual information from the context.
-3. If multiple names or members are present, include ALL of them.
-4. Do NOT summarize entity lists.
-5. Answer ONLY from the retrieved context.
-6. Do NOT ignore relevant retrieved content.
-7. If the context contains a complete list, preserve the entire list.
-8. Do NOT shorten factual information.
+You are NOT allowed to:
+- use outside knowledge
+- hallucinate information
+- invent facts
+- assume missing information
 
 
-CONTEXT:
+==================================================
+ANSWERING BEHAVIOR
+==================================================
+
+1. Carefully analyze ALL retrieved context before answering.
+
+2. Synthesize information naturally instead of copying raw chunks directly.
+
+3. Combine related information from multiple chunks into one coherent explanation.
+
+4. Keep factual information accurate and complete.
+
+5. Preserve:
+   - names
+   - numbers
+   - entities
+   - technical details
+   - lists
+   exactly as present in the context.
+
+6. If the question asks:
+   - "Explain"
+   - "Describe"
+   - "What is"
+   then provide a clear explanatory response.
+
+7. If multiple points exist in the context:
+   organize them clearly.
+
+8. Do NOT generate robotic chunk-like responses.
+
+9. Do NOT mention:
+   "according to the context"
+   or
+   "the provided context says"
+
+10. If the answer is unavailable in the retrieved context, respond ONLY with:
+"The document does not contain enough information."
+
+
+==================================================
+RESPONSE STYLE
+==================================================
+
+- Write naturally and professionally.
+- Use complete sentences.
+- Keep explanations concise but meaningful.
+- Avoid unnecessary repetition.
+- Prefer synthesized explanations over raw extraction.
+
+
+==================================================
+CONTEXT
+==================================================
+
 {context}
 
 
-PREVIOUS CONVERSATION:
+==================================================
+PREVIOUS CONVERSATION
+==================================================
+
 {conversation_context}
 
 
-QUESTION:
+==================================================
+QUESTION
+==================================================
+
 {question}
 
 
-ANSWER:
+==================================================
+ANSWER
+==================================================
 
 """
 )
@@ -124,6 +178,15 @@ def generate_answer(
 
 
     # =========================
+    # EMPTY CONTEXT CHECK
+    # =========================
+
+    if not reranked_chunks:
+
+        return "The document does not contain enough information."
+
+
+    # =========================
     # CREATE CONTEXT
     # =========================
 
@@ -131,7 +194,7 @@ def generate_answer(
 
         [
 
-            chunk.page_content
+            chunk.page_content.strip()
 
             for chunk, score in reranked_chunks[:5]
         ]
@@ -158,7 +221,7 @@ def generate_answer(
 
     response = llm.invoke(final_prompt)
 
-    answer = response.content
+    answer = response.content.strip()
 
 
     # =========================
@@ -172,11 +235,35 @@ def generate_answer(
 
         metadata = chunk.metadata
 
+        source_name = metadata.get(
+
+            "source",
+
+            "Unknown Source"
+        )
+
+        page = metadata.get(
+
+            "page",
+
+            "Unknown"
+        )
+
+        section = metadata.get(
+
+            "section",
+
+            "general"
+        )
+
+
         source_text = (
 
-            f"Page {metadata['page']} | "
+            f"{source_name} | "
 
-            f"Section: {metadata['section']}"
+            f"Page {page} | "
+
+            f"Section: {section}"
         )
 
 
