@@ -164,6 +164,55 @@ ANSWER
 
 
 # =========================
+# GROUNDED CONTEXT BUILDER
+# =========================
+
+def build_grounded_context(chunks):
+
+    formatted_chunks = []
+
+    for i, item in enumerate(chunks, 1):
+
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+
+        else:
+
+            chunk = item
+
+        source = chunk.metadata.get(
+            "source",
+            "Unknown"
+        )
+
+        page = chunk.metadata.get(
+            "page",
+            "N/A"
+        )
+
+        section = chunk.metadata.get(
+            "section",
+            "General"
+        )
+
+        formatted_chunk = f"""
+[Chunk {i}]
+Source: {source}
+Page: {page}
+Section: {section}
+
+Content:
+{chunk.page_content.strip()}
+"""
+
+        formatted_chunks.append(formatted_chunk)
+
+    return "\n\n".join(formatted_chunks)
+
+
+
+# =========================
 # GENERATE ANSWER FUNCTION
 # =========================
 
@@ -186,19 +235,16 @@ def generate_answer(
         return "The document does not contain enough information."
 
 
+
     # =========================
-    # CREATE CONTEXT
+    # CREATE GROUNDED CONTEXT
     # =========================
 
-    context = "\n\n".join(
+    context = build_grounded_context(
 
-        [
-
-            chunk.page_content.strip()
-
-            for chunk, score in reranked_chunks[:5]
-        ]
+        reranked_chunks[:5]
     )
+    
 
 
     # =========================
@@ -221,7 +267,11 @@ def generate_answer(
 
     response = llm.invoke(final_prompt)
 
-    answer = response.content.strip()
+    answer = (
+        response.content
+        .replace("\\n", "\n")
+        .strip()
+    )
 
 
     # =========================
@@ -230,60 +280,76 @@ def generate_answer(
 
     sources = []
 
+    for item in reranked_chunks[:5]:
 
-    for chunk, score in reranked_chunks[:5]:
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+
+        else:
+
+            chunk = item
 
         metadata = chunk.metadata
 
         source_name = metadata.get(
-
             "source",
-
             "Unknown Source"
         )
 
         page = metadata.get(
-
             "page",
-
             "Unknown"
         )
 
         section = metadata.get(
-
             "section",
-
             "general"
         )
 
-
         source_text = (
-
             f"{source_name} | "
-
             f"Page {page} | "
-
             f"Section: {section}"
         )
-
 
         if source_text not in sources:
 
             sources.append(source_text)
 
+    # =========================
+    # REMOVE SOURCES FOR UNKNOWN ANSWERS
+    # =========================
 
-    citations = "\n".join(sources)
+    refusal_phrases = [
 
+        "does not contain enough information",
 
-    
+        "not enough information",
 
-# =========================
+        "information is not available",
+
+        "cannot be found in the provided context"
+    ]
+
+    if any(
+
+        phrase in answer.lower()
+
+        for phrase in refusal_phrases
+    ):
+
+        sources = []
+
+        
+
+    # =========================
     # FINAL ANSWER
     # =========================
 
-    return {
+        return {
 
-        "answer": answer,
+            "answer": answer,
 
-        "sources": sources
-    }
+            "sources": sources
+        }

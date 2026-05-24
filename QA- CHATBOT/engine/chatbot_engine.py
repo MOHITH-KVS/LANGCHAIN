@@ -18,8 +18,6 @@ from embeddings import embedding_model
 
 from vector_store import (
 
-    create_bm25_index,
-
     hybrid_retrieve
 )
 
@@ -57,7 +55,7 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 
 MIN_RELEVANCE_SCORE = 0.3
 
-MAX_CONTEXT_CHUNKS = 5
+MAX_CONTEXT_CHUNKS = 3
 
 RELATIVE_SCORE_THRESHOLD = 0.55
 
@@ -127,15 +125,6 @@ with open("chunks.pkl", "rb") as f:
 
     all_chunks = pickle.load(f)
 
-
-# =========================
-# BM25 INDEX
-# =========================
-
-bm25_index = create_bm25_index(
-
-    all_chunks
-)
 
 # =========================
 # LOAD DOCUMENT REGISTRY
@@ -295,6 +284,15 @@ def ask_question(
     )
 
 
+    if len(matched_documents) == 0:
+
+        return {
+
+            "answer": "No relevant document found.",
+
+            "sources": []
+        }
+
     selected_document = matched_documents[0]["source"]
 
     document_score = matched_documents[0]["score"]
@@ -343,6 +341,21 @@ def ask_question(
         k=15
     )
 
+    print("\nHYBRID RETRIEVAL RESULTS:\n")
+
+    for chunk, score in retrieved_chunks[:5]:
+
+        print("SECTION:")
+        print(chunk.metadata)
+
+        print("\nHYBRID SCORE:")
+        print(score)
+
+        print("\nCONTENT:")
+        print(chunk.page_content[:300])
+
+        print("\n" + "=" * 50)
+
 
     # =========================
     # RERANKING
@@ -350,11 +363,38 @@ def ask_question(
 
     reranked_chunks = rerank_chunks(
 
-
         rewritten_query,
 
-        retrieved_chunks
+        [chunk for chunk, score in retrieved_chunks]
     )
+
+    print("\nRERANKED RESULTS:\n")
+
+    for item in reranked_chunks[:5]:
+
+        print("\nDEBUG ITEM:")
+        print(item)
+
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+            score = item[1]
+
+        else:
+
+            chunk = item
+            score = "N/A"
+
+        print("SECTION:")
+        print(chunk.metadata)
+
+        print("\nRERANK SCORE:")
+        print(score)
+
+        print("\nCONTENT:")
+        print(chunk.page_content[:300])
+
+        print("\n" + "=" * 50)
 
     # =========================
     # RELEVANCE FILTERING
@@ -362,9 +402,19 @@ def ask_question(
 
     filtered_chunks = []
 
-    for chunk, score in reranked_chunks:
+    for item in reranked_chunks:
 
-        if score >= -2:
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+            score = item[1]
+
+        else:
+
+            chunk = item
+            score = 0
+
+        if score > 0:
 
             filtered_chunks.append((chunk, score))
 
@@ -390,7 +440,17 @@ def ask_question(
 
     print("\nDEBUG RETRIEVED CHUNKS:\n")
 
-    for chunk, score in filtered_chunks[:3]:
+    for item in filtered_chunks[:3]:
+
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+            score = item[1]
+
+        else:
+
+            chunk = item
+            score = "N/A"
 
         print("SECTION:")
         print(chunk.metadata)
@@ -494,6 +554,13 @@ def ask_question(
 
 
             nearby_chunk = chunk_id_index[nearby_id]
+
+            if (
+                nearby_chunk["metadata"]["source"]
+                !=
+                chunk.metadata["source"]
+            ):
+                continue
 
 
             # =========================

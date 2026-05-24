@@ -305,24 +305,24 @@ def hybrid_retrieve(
             )
 
 
-    # =========================
-    # KEEP ONLY STRONG MATCHES
-    # =========================
+        # =========================
+        # KEEP ONLY STRONG MATCHES
+        # =========================
 
-    if (
+        if (
 
-        source_match
+            source_match
 
-        and
+            and
 
-        section_match
+            section_match
 
-        and
+            and
 
-        score <= SEMANTIC_SCORE_THRESHOLD
-    ):
+            score <= SEMANTIC_SCORE_THRESHOLD
+        ):
 
-        semantic_docs.append(doc)
+            semantic_docs.append(doc)
 
     
 
@@ -472,7 +472,12 @@ def hybrid_retrieve(
 
     combined_results = [
 
-        item["doc"]
+        (
+
+            item["doc"],
+
+            item["score"]
+        )
 
         for item in ranked_results
     ]

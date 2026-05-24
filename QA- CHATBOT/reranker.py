@@ -19,23 +19,62 @@ def rerank_chunks(query, retrieved_chunks):
 
     pairs = []
 
-    for chunk in retrieved_chunks:
+    documents = []
+
+
+    # =========================
+    # PREPARE CROSS-ENCODER INPUT
+    # =========================
+
+    for item in retrieved_chunks:
+
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+
+        else:
+
+            chunk = item
 
         pairs.append(
+
             [query, chunk.page_content]
         )
 
+        documents.append(chunk)
+
+
+    # =========================
+    # GET RERANK SCORES
+    # =========================
+
     scores = reranker_model.predict(pairs)
 
-    scored_chunks = list(
-        zip(retrieved_chunks, scores)
-    )
+
+    # =========================
+    # ATTACH SCORES
+    # =========================
+
+    scored_chunks = [
+
+        (doc, float(score))
+
+        for doc, score in zip(documents, scores)
+    ]
+
+
+    # =========================
+    # SORT BY RERANK SCORE
+    # =========================
 
     ranked_chunks = sorted(
+
         scored_chunks,
+
         key=lambda x: x[1],
+
         reverse=True
     )
 
-    return ranked_chunks
 
+    return ranked_chunks

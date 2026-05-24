@@ -18,7 +18,7 @@ def create_bm25_index(chunks):
 
     tokenized_chunks = [
 
-        tokenize(chunk["text"])
+        tokenize(chunk["content"])
 
         for chunk in chunks
     ]
