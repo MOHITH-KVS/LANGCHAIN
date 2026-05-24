@@ -49,6 +49,8 @@ class ChatRequest(BaseModel):
 
     question: str
 
+    document_name: str | None = None
+
 
 # =========================
 # RESPONSE MODEL
@@ -102,7 +104,9 @@ def chat(request: ChatRequest):
 
         response = ask_question(
 
-            request.question
+            question=request.question,
+
+            document_name=request.document_name
         )
 
         return response

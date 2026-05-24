@@ -253,21 +253,28 @@ def hybrid_retrieve(
 
 
     # =========================
-    # FAISS RETRIEVAL
+    # FAISS RETRIEVAL WITH SCORES
     # =========================
 
-    semantic_results = vector_store.similarity_search(
+    semantic_results = vector_store.similarity_search_with_score(
 
         query,
 
-        k=k * 3
+        k=k * 5
     )
 
 
     semantic_docs = []
 
 
-    for doc in semantic_results:
+    # =========================
+    # SEMANTIC SCORE FILTERING
+    # =========================
+
+    SEMANTIC_SCORE_THRESHOLD = 1.2
+
+
+    for doc, score in semantic_results:
 
         source_match = True
 
@@ -298,9 +305,26 @@ def hybrid_retrieve(
             )
 
 
-        if source_match and section_match:
+    # =========================
+    # KEEP ONLY STRONG MATCHES
+    # =========================
 
-            semantic_docs.append(doc)
+    if (
+
+        source_match
+
+        and
+
+        section_match
+
+        and
+
+        score <= SEMANTIC_SCORE_THRESHOLD
+    ):
+
+        semantic_docs.append(doc)
+
+    
 
 
     # =========================
@@ -359,12 +383,20 @@ def hybrid_retrieve(
     # MERGE RESULTS
     # =========================
 
-    combined_results = []
+    # =========================
+    # RECIPROCAL RANK FUSION
+    # =========================
 
-    seen = set()
+    rrf_scores = {}
+
+    RRF_K = 60
 
 
-    for doc in semantic_docs + bm25_docs:
+    # =========================
+    # SEMANTIC RANKING
+    # =========================
+
+    for rank, doc in enumerate(semantic_docs):
 
         unique_key = (
 
@@ -376,11 +408,74 @@ def hybrid_retrieve(
         )
 
 
-        if unique_key not in seen:
+        score = 1 / (RRF_K + rank + 1)
 
-            combined_results.append(doc)
 
-            seen.add(unique_key)
+        if unique_key not in rrf_scores:
+
+            rrf_scores[unique_key] = {
+
+                "doc": doc,
+
+                "score": 0
+            }
+
+
+        rrf_scores[unique_key]["score"] += score
+
+
+    # =========================
+    # BM25 RANKING
+    # =========================
+
+    for rank, doc in enumerate(bm25_docs):
+
+        unique_key = (
+
+            doc.metadata.get("source", ""),
+
+            doc.metadata.get("page", -1),
+
+            doc.metadata.get("chunk_id", -1)
+        )
+
+
+        score = 1 / (RRF_K + rank + 1)
+
+
+        if unique_key not in rrf_scores:
+
+            rrf_scores[unique_key] = {
+
+                "doc": doc,
+
+                "score": 0
+            }
+
+
+        rrf_scores[unique_key]["score"] += score
+
+
+    # =========================
+    # FINAL RANKING
+    # =========================
+
+    ranked_results = sorted(
+
+        rrf_scores.values(),
+
+        key=lambda x: x["score"],
+
+        reverse=True
+    )
+
+
+    combined_results = [
+
+        item["doc"]
+
+        for item in ranked_results
+    ]
 
 
     return combined_results[:k]

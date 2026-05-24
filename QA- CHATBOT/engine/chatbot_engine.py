@@ -31,6 +31,14 @@ from query_rewriter import rewrite_query
 
 from document_router import route_documents
 
+from engine.bm25_retriever import (
+
+    create_bm25_index,
+
+    bm25_search
+)
+
+
 import pickle
 
 import tiktoken
@@ -66,6 +74,51 @@ def count_tokens(text):
         tokenizer.encode(text)
     )
 
+
+# =========================
+# REMOVE DUPLICATE CHUNKS
+# =========================
+
+def remove_duplicate_chunks(reranked_chunks):
+
+    unique_chunks = []
+
+    seen_contents = set()
+
+
+    for chunk, score in reranked_chunks:
+
+
+        normalized_content = (
+
+            chunk.page_content
+            .strip()
+            .lower()
+        )
+
+
+        # =========================
+        # DUPLICATE CHECK
+        # =========================
+
+        if normalized_content in seen_contents:
+
+            continue
+
+
+        seen_contents.add(normalized_content)
+
+
+        unique_chunks.append(
+
+            (chunk, score)
+        )
+
+
+    return unique_chunks
+
+
+
 # =========================
 # LOAD SAVED CHUNKS
 # =========================
@@ -73,6 +126,29 @@ def count_tokens(text):
 with open("chunks.pkl", "rb") as f:
 
     all_chunks = pickle.load(f)
+
+
+# =========================
+# BM25 INDEX
+# =========================
+
+bm25_index = create_bm25_index(
+
+    all_chunks
+)
+
+# =========================
+# LOAD DOCUMENT REGISTRY
+# =========================
+
+with open(
+
+    "document_registry.pkl",
+
+    "rb"
+) as f:
+
+    document_registry = pickle.load(f)
 
 
 # =========================
@@ -150,11 +226,20 @@ bm25 = create_bm25_index(all_chunks)
 chat_history = []
 
 
+
+
+
+
 # =========================
 # MAIN CHATBOT FUNCTION
 # =========================
 
-def ask_question(question):
+def ask_question(
+
+    question,
+
+    document_name=None
+):
 
 
     # =========================
@@ -225,6 +310,21 @@ def ask_question(question):
 
 
     # =========================
+    # OPTIONAL MANUAL DOCUMENT
+    # =========================
+
+    if document_name is not None:
+
+        selected_document = document_name
+
+    print("\nSELECTED DOCUMENT:")
+    print(selected_document)
+
+    print("\nDOCUMENT MATCH SCORE:")
+    print(document_score)
+
+
+    # =========================
     # HYBRID RETRIEVAL
     # =========================
 
@@ -238,7 +338,9 @@ def ask_question(question):
 
         rewritten_query,
 
-        source_filter=selected_document
+        source_filter=selected_document,
+
+        k=15
     )
 
 
@@ -255,12 +357,40 @@ def ask_question(question):
     )
 
     # =========================
+    # RELEVANCE FILTERING
+    # =========================
+
+    filtered_chunks = []
+
+    for chunk, score in reranked_chunks:
+
+        if score >= -2:
+
+            filtered_chunks.append((chunk, score))
+
+
+    # fallback safety
+    if len(filtered_chunks) == 0:
+
+        filtered_chunks = reranked_chunks[:3]
+
+
+    # =========================
+    # REMOVE DUPLICATES
+    # =========================
+
+    filtered_chunks = remove_duplicate_chunks(
+
+        filtered_chunks
+    )
+
+    # =========================
     # DEBUG RETRIEVED CHUNKS
     # =========================
 
     print("\nDEBUG RETRIEVED CHUNKS:\n")
 
-    for chunk, score in reranked_chunks[:3]:
+    for chunk, score in filtered_chunks[:3]:
 
         print("SECTION:")
         print(chunk.metadata)
@@ -278,7 +408,7 @@ def ask_question(question):
     # RETRIEVAL VALIDATION
     # =========================
 
-    if len(reranked_chunks) == 0:
+    if len(filtered_chunks) == 0:
 
         return {
 
@@ -286,7 +416,7 @@ def ask_question(question):
         }
 
 
-    top_rerank_score = reranked_chunks[0][1]
+    top_rerank_score = filtered_chunks[0][1]
 
 
     
@@ -307,7 +437,7 @@ def ask_question(question):
     # TAKE TOP RERANKED CHUNKS
     # =========================
 
-    top_chunks = reranked_chunks[:MAX_CONTEXT_CHUNKS]
+    top_chunks = filtered_chunks[:MAX_CONTEXT_CHUNKS]
 
 
     for chunk, score in top_chunks:
@@ -510,7 +640,9 @@ def ask_question(question):
 
         "context_tokens": int(current_token_count),
 
-        "answer": answer
+        "answer": generation_result["answer"],
+
+        "sources": generation_result["sources"]
     }
 
 if __name__ == "__main__":
