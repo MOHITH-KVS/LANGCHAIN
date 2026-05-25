@@ -225,38 +225,46 @@ def index_single_document(
     # LOAD EXISTING CHUNKS
     # =========================
 
-    with open(
+    if os.path.exists(CHUNKS_PATH):
 
-        CHUNKS_PATH,
+        with open(CHUNKS_PATH, "rb") as f:
 
-        "rb"
-    ) as f:
+            all_chunks = pickle.load(f)
 
-        all_chunks = pickle.load(f)
+    else:
+
+        all_chunks = []
 
 
     # =========================
     # LOAD DOCUMENT REGISTRY
     # =========================
 
-    with open(
+    if os.path.exists(DOCUMENT_REGISTRY_PATH):
 
-        DOCUMENT_REGISTRY_PATH,
+        with open(DOCUMENT_REGISTRY_PATH, "rb") as f:
 
-        "rb"
-    ) as f:
+            document_registry = pickle.load(f)
 
-        document_registry = pickle.load(f)
+    else:
+
+        document_registry = {}
 
 
     # =========================
-    # LOAD EXISTING VECTOR STORE
+    # LOAD OR CREATE VECTOR STORE
     # =========================
 
-    vector_store = load_vector_store(
+    if os.path.exists(FAISS_INDEX_PATH):
 
-        embedding_model
-    )
+        vector_store = load_vector_store(
+
+            embedding_model
+        )
+
+    else:
+
+        vector_store = None
 
 
     # =========================
@@ -327,15 +335,26 @@ def index_single_document(
 
 
     # =========================
-    # APPEND TO VECTOR STORE
+    # CREATE OR UPDATE VECTOR STORE
     # =========================
 
-    vector_store = add_documents_to_vector_store(
+    if vector_store is None:
 
-        vector_store,
+        vector_store = create_vector_store(
 
-        document_chunks
-    )
+            document_chunks,
+
+            embedding_model
+        )
+
+    else:
+
+        vector_store = add_documents_to_vector_store(
+
+            vector_store,
+
+            document_chunks
+        )
 
 
     # =========================

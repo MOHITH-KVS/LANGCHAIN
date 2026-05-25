@@ -1,17 +1,17 @@
-#GOAL OF THIS FILE
+# GOAL OF THIS FILE
 
-#This file should ONLY:
+# This file should ONLY:
 
-#| Responsibility              | Why                              |
-#| --------------------------- | -------------------------------- |
-#| Split cleaned text          | semantic document chunking       |
-#| Preserve contextual meaning | stronger retrieval quality       |
-#| Create meaningful chunks    | improve embedding quality        |
-#| Maintain chunk metadata     | contextual retrieval             |
-#| Generate chunk structures   | industrial RAG pipeline          |
+# | Responsibility              | Why                              |
+# | --------------------------- | -------------------------------- |
+# | Split cleaned text          | semantic document chunking       |
+# | Preserve contextual meaning | stronger retrieval quality       |
+# | Create meaningful chunks    | improve embedding quality        |
+# | Maintain chunk metadata     | contextual retrieval             |
+# | Generate chunk structures   | industrial RAG pipeline          |
 
 
-from nltk.tokenize import sent_tokenize
+import re
 
 
 # =========================
@@ -36,10 +36,21 @@ def create_chunks(
 
 
     # =========================
-    # SPLIT INTO SENTENCES
+    # SMART STRUCTURE SPLITTING
+    # =========================
+    # Better for:
+    # - resumes
+    # - industrial docs
+    # - reports
+    # - OCR extracted PDFs
     # =========================
 
-    sentences = sent_tokenize(text)
+    sentences = re.split(
+
+        r'\n+|(?<=:)|(?<=\.)',
+
+        text
+    )
 
 
     chunks = []
@@ -55,14 +66,30 @@ def create_chunks(
 
     for sentence in sentences:
 
-        # Add sentence if chunk size is safe
+        sentence = sentence.strip()
 
-        if len(current_chunk) + len(sentence) < MAX_CHUNK_LENGTH:
+        if not sentence:
+
+            continue
+
+
+        # =========================
+        # ADD TO CURRENT CHUNK
+        # =========================
+
+        if (
+
+            len(current_chunk) + len(sentence)
+
+            < MAX_CHUNK_LENGTH
+        ):
 
             current_chunk += " " + sentence
 
 
-        # Otherwise create chunk
+        # =========================
+        # CREATE NEW CHUNK
+        # =========================
 
         else:
 
@@ -93,7 +120,7 @@ def create_chunks(
     # FINAL CHUNK
     # =========================
 
-    if current_chunk.strip():
+    if len(current_chunk.strip()) >= MIN_CHUNK_LENGTH:
 
         chunk_data = {
 

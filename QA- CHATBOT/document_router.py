@@ -10,6 +10,7 @@
 #| Return relevant documents   | scalable enterprise RAG          |
 
 
+import os
 import pickle
 
 from sentence_transformers import SentenceTransformer
@@ -33,9 +34,15 @@ embedding_model = SentenceTransformer(
 # LOAD DOCUMENT REGISTRY
 # =========================
 
-with open("document_registry.pkl", "rb") as f:
+if os.path.exists("document_registry.pkl"):
 
-    document_registry = pickle.load(f)
+    with open("document_registry.pkl", "rb") as f:
+
+        document_registry = pickle.load(f)
+
+else:
+
+    document_registry = {}
 
 
 # =========================
@@ -56,10 +63,16 @@ document_texts = list(document_registry.values())
 # CREATE DOCUMENT EMBEDDINGS
 # =========================
 
-document_embeddings = embedding_model.encode(
+if len(document_texts) > 0:
 
-    document_texts
-)
+    document_embeddings = embedding_model.encode(
+
+        document_texts
+    )
+
+else:
+
+    document_embeddings = np.array([])
 
 
 # =========================
@@ -73,8 +86,26 @@ def route_documents(
     top_k=1
 ):
 
+
+    # =========================
+    # NO DOCUMENTS AVAILABLE
+    # =========================
+
+    if len(document_names) == 0:
+
+        return []
+
+
+    # =========================
+    # QUERY EMBEDDING
+    # =========================
+
     query_embedding = embedding_model.encode([query])
 
+
+    # =========================
+    # SIMILARITY SEARCH
+    # =========================
 
     similarities = cosine_similarity(
 
@@ -84,11 +115,19 @@ def route_documents(
     )[0]
 
 
+    # =========================
+    # SORT DOCUMENTS
+    # =========================
+
     ranked_indices = np.argsort(similarities)[::-1]
 
 
     matched_documents = []
 
+
+    # =========================
+    # TOP DOCUMENTS
+    # =========================
 
     for idx in ranked_indices[:top_k]:
 
@@ -98,7 +137,7 @@ def route_documents(
 
                 "source": document_names[idx],
 
-                "score": similarities[idx]
+                "score": float(similarities[idx])
             }
         )
 

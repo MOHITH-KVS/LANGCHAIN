@@ -41,6 +41,8 @@ import pickle
 
 import tiktoken
 
+import os
+
 
 # =========================
 # TOKENIZER
@@ -57,9 +59,14 @@ MIN_RELEVANCE_SCORE = 0.3
 
 MAX_CONTEXT_CHUNKS = 3
 
-RELATIVE_SCORE_THRESHOLD = 0.55
+RELATIVE_SCORE_THRESHOLD = 0.30
 
 MAX_CONTEXT_TOKENS = 1800
+
+MIN_RERANK_SCORE = 0.1
+
+MIN_CONTEXT_CHUNKS = 1
+
 
 # =========================
 # TOKEN COUNT FUNCTION
@@ -117,96 +124,6 @@ def remove_duplicate_chunks(reranked_chunks):
 
 
 
-# =========================
-# LOAD SAVED CHUNKS
-# =========================
-
-with open("chunks.pkl", "rb") as f:
-
-    all_chunks = pickle.load(f)
-
-
-# =========================
-# LOAD DOCUMENT REGISTRY
-# =========================
-
-with open(
-
-    "document_registry.pkl",
-
-    "rb"
-) as f:
-
-    document_registry = pickle.load(f)
-
-
-# =========================
-# METADATA INDEXES
-# =========================
-
-source_index = {}
-
-section_index = {}
-
-chunk_id_index = {}
-
-
-for chunk in all_chunks:
-
-    source = chunk["metadata"]["source"]
-
-    section = chunk["metadata"]["section"]
-
-    chunk_id = chunk["chunk_id"]
-
-
-    # SOURCE INDEX
-
-    if source not in source_index:
-
-        source_index[source] = []
-
-
-    source_index[source].append(chunk)
-
-
-    # SECTION INDEX
-
-    section_key = (source, section)
-
-
-    if section_key not in section_index:
-
-        section_index[section_key] = []
-
-
-    section_index[section_key].append(chunk)
-
-
-    # CHUNK ID INDEX
-
-    chunk_id_index[chunk_id] = chunk
-
-
-# =========================
-# LOAD VECTOR DATABASE
-# =========================
-
-vector_store = FAISS.load_local(
-
-    "faiss_index",
-
-    embedding_model,
-
-    allow_dangerous_deserialization=True
-)
-
-
-# =========================
-# CREATE BM25 INDEX
-# =========================
-
-bm25 = create_bm25_index(all_chunks)
 
 # =========================
 # CHAT MEMORY
@@ -229,6 +146,104 @@ def ask_question(
 
     document_name=None
 ):
+    
+        # =========================
+    # LOAD SAVED CHUNKS
+    # =========================
+
+    if os.path.exists("chunks.pkl"):
+
+        with open("chunks.pkl", "rb") as f:
+
+            all_chunks = pickle.load(f)
+
+    else:
+
+        return {
+
+            "answer": (
+
+                "No documents are uploaded yet. "
+
+                "Please upload PDFs first."
+            ),
+
+            "sources": []
+        }
+
+
+    # =========================
+    # LOAD VECTOR DATABASE
+    # =========================
+
+    if os.path.exists("faiss_index"):
+
+        vector_store = FAISS.load_local(
+
+            "faiss_index",
+
+            embedding_model,
+
+            allow_dangerous_deserialization=True
+        )
+
+    else:
+
+        return {
+
+            "answer": "Vector database not found.",
+
+            "sources": []
+        }
+
+
+    # =========================
+    # CREATE BM25 INDEX
+    # =========================
+
+    bm25 = create_bm25_index(all_chunks)
+
+
+    # =========================
+    # CREATE METADATA INDEXES
+    # =========================
+
+    source_index = {}
+
+    section_index = {}
+
+    chunk_id_index = {}
+
+
+    for chunk in all_chunks:
+
+        source = chunk["metadata"]["source"]
+
+        section = chunk["metadata"]["section"]
+
+        chunk_id = chunk["chunk_id"]
+
+
+        if source not in source_index:
+
+            source_index[source] = []
+
+
+        source_index[source].append(chunk)
+
+
+        section_key = (source, section)
+
+
+        if section_key not in section_index:
+
+            section_index[section_key] = []
+
+
+        section_index[section_key].append(chunk)
+
+
+        chunk_id_index[chunk_id] = chunk
 
 
     # =========================
@@ -242,6 +257,35 @@ def ask_question(
             "answer": "Please enter a valid question."
         }
 
+
+    # =========================
+    # EMPTY DATABASE CHECK
+    # =========================
+
+    if (
+
+        vector_store is None
+
+        or
+
+        bm25 is None
+
+        or
+
+        len(all_chunks) == 0
+    ):
+
+        return {
+
+            "answer": (
+
+                "No documents are uploaded yet. "
+
+                "Please upload PDFs first."
+            ),
+
+            "sources": []
+        }
 
     # =========================
     # CONVERSATION MEMORY
@@ -396,6 +440,10 @@ def ask_question(
 
         print("\n" + "=" * 50)
 
+
+    
+
+
     # =========================
     # RELEVANCE FILTERING
     # =========================
@@ -414,7 +462,7 @@ def ask_question(
             chunk = item
             score = 0
 
-        if score > 0:
+        if score >= MIN_RERANK_SCORE:
 
             filtered_chunks.append((chunk, score))
 
@@ -477,6 +525,41 @@ def ask_question(
 
 
     top_rerank_score = filtered_chunks[0][1]
+
+
+
+    # =========================
+    # RETRIEVAL CONFIDENCE CHECK
+    # =========================
+
+    if top_rerank_score < MIN_RERANK_SCORE:
+
+        return {
+
+            "answer": (
+
+                "The retrieved information is not "
+
+                "confident enough to answer reliably."
+            ),
+
+            "sources": []
+        }
+
+
+    if len(filtered_chunks) < MIN_CONTEXT_CHUNKS:
+
+        return {
+
+            "answer": (
+
+                "Not enough relevant information "
+
+                "was found in the documents."
+            ),
+
+            "sources": []
+        }
 
 
     

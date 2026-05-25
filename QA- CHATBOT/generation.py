@@ -30,6 +30,8 @@ from dotenv import load_dotenv
 
 import os
 
+import re
+
 
 load_dotenv()
 
@@ -65,77 +67,55 @@ prompt_template = PromptTemplate(
 
     template="""
 
-You are an advanced Retrieval-Augmented Generation (RAG) assistant.
+You are an industrial-grade Retrieval-Augmented Generation (RAG) assistant.
 
-Your task is to answer the user's question ONLY using the provided retrieved context.
-
-You must generate answers that are:
-- grounded
-- accurate
-- contextual
-- clearly explained
-- professionally written
-
-You are NOT allowed to:
-- use outside knowledge
-- hallucinate information
-- invent facts
-- assume missing information
-
+Your responsibility is to answer the user's question ONLY using the retrieved context.
 
 ==================================================
-ANSWERING BEHAVIOR
+STRICT RULES
 ==================================================
 
-1. Carefully analyze ALL retrieved context before answering.
+1. NEVER use outside knowledge.
 
-2. Synthesize information naturally instead of copying raw chunks directly.
+2. NEVER hallucinate or invent facts.
 
-3. Combine related information from multiple chunks into one coherent explanation.
+3. NEVER assume missing information.
 
-4. Keep factual information accurate and complete.
+4. If the answer is not available in the context, respond ONLY with:
+"The document does not contain enough information."
 
 5. Preserve:
    - names
    - numbers
+   - technical terms
+   - skills
+   - technologies
    - entities
-   - technical details
-   - lists
-   exactly as present in the context.
+   exactly as written.
 
-6. If the question asks:
-   - "Explain"
-   - "Describe"
-   - "What is"
-   then provide a clear explanatory response.
+6. Keep answers:
+   - professional
+   - concise
+   - well-structured
+   - human-readable
 
-7. If multiple points exist in the context:
-   organize them clearly.
+7. Use bullet points whenever appropriate.
 
-8. Do NOT generate robotic chunk-like responses.
+8. If the context contains lists, skills, tools, technologies, or features:
+   organize them clearly using bullets.
 
 9. Do NOT mention:
-   "according to the context"
-   or
-   "the provided context says"
+   - chunks
+   - retrieval
+   - embeddings
+   - vector databases
+   - provided context
 
-10. If the answer is unavailable in the retrieved context, respond ONLY with:
-"The document does not contain enough information."
-
-
-==================================================
-RESPONSE STYLE
-==================================================
-
-- Write naturally and professionally.
-- Use complete sentences.
-- Keep explanations concise but meaningful.
-- Avoid unnecessary repetition.
-- Prefer synthesized explanations over raw extraction.
+10. Synthesize information naturally instead of copying raw chunk text.
 
 
 ==================================================
-CONTEXT
+RETRIEVED CONTEXT
 ==================================================
 
 {context}
@@ -213,6 +193,115 @@ Content:
 
 
 # =========================
+# CONTEXT COMPRESSION
+# =========================
+
+def compress_context(question, chunks):
+
+    compressed_chunks = []
+
+    query_words = set(
+
+        re.findall(r'\w+', question.lower())
+    )
+
+    for item in chunks:
+
+        if isinstance(item, tuple):
+
+            chunk = item[0]
+
+        else:
+
+            chunk = item
+
+        text = chunk.page_content
+
+        sentences = re.split(
+
+            r'(?<=[.!?])\s+',
+            text
+        )
+
+        relevant_sentences = []
+
+        for sentence in sentences:
+
+            sentence_words = set(
+
+                sentence.lower().split()
+            )
+
+            overlap = query_words.intersection(
+
+                sentence_words
+            )
+
+            if len(overlap) >= 2:
+
+                relevant_sentences.append(sentence)
+
+        # fallback
+        if not relevant_sentences:
+
+            relevant_sentences = sentences[:2]
+
+        compressed_text = " ".join(
+
+        relevant_sentences
+    )
+
+
+        # =========================
+        # COMPRESSION DEBUG LOGS
+        # =========================
+
+        #print("\n" + "="*50)
+
+        #print("ORIGINAL CHUNK:\n")
+
+        #print(text[:700])
+
+        #print("\n" + "-"*50)
+
+        #print("COMPRESSED CHUNK:\n")
+
+        #print(compressed_text[:700])
+
+        #print("\n" + "-"*50)
+
+        #print(
+
+        #    f"ORIGINAL LENGTH: {len(text)} characters"
+        #)
+
+        #print(
+
+        #    f"COMPRESSED LENGTH: {len(compressed_text)} characters"
+        #)
+
+        #reduction = (
+
+        #    len(text) - len(compressed_text)
+        #)
+
+        #print(
+
+        #    f"REDUCED BY: {reduction} characters"
+        #)
+
+        #print("="*50 + "\n")
+
+
+        chunk.page_content = compressed_text
+
+        compressed_chunks.append(chunk)
+
+    return compressed_chunks
+
+
+
+# =========================
 # GENERATE ANSWER FUNCTION
 # =========================
 
@@ -237,12 +326,24 @@ def generate_answer(
 
 
     # =========================
+    # CONTEXT COMPRESSION
+    # =========================
+
+    compressed_chunks = compress_context(
+
+        question,
+
+        reranked_chunks[:5]
+    )
+
+
+    # =========================
     # CREATE GROUNDED CONTEXT
     # =========================
 
     context = build_grounded_context(
 
-        reranked_chunks[:5]
+        compressed_chunks
     )
     
 
@@ -347,9 +448,9 @@ def generate_answer(
     # FINAL ANSWER
     # =========================
 
-        return {
+    return {
 
-            "answer": answer,
+        "answer": answer,
 
-            "sources": sources
-        }
+        "sources": sources
+    }
