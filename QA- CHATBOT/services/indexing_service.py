@@ -104,7 +104,9 @@ def process_pdf_document(
 
                 page_num + 1,
 
-                section_name
+                section_name,
+
+                document_type = "pdf"
             )
 
 

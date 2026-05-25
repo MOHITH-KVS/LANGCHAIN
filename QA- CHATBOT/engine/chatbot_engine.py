@@ -63,7 +63,7 @@ RELATIVE_SCORE_THRESHOLD = 0.30
 
 MAX_CONTEXT_TOKENS = 1800
 
-MIN_RERANK_SCORE = 0.1
+MIN_RERANK_SCORE = 0.15
 
 MIN_CONTEXT_CHUNKS = 1
 
@@ -328,18 +328,23 @@ def ask_question(
     )
 
 
+    # =========================
+    # ROUTER FALLBACK
+    # =========================
+
     if len(matched_documents) == 0:
 
-        return {
+        print("\nROUTER FAILED - FALLING BACK TO GLOBAL SEARCH")
 
-            "answer": "No relevant document found.",
+        selected_document = None
 
-            "sources": []
-        }
+        document_score = 0
 
-    selected_document = matched_documents[0]["source"]
+    else:
 
-    document_score = matched_documents[0]["score"]
+        selected_document = matched_documents[0]["source"]
+
+        document_score = matched_documents[0]["score"]
 
 
     # =========================
@@ -470,8 +475,15 @@ def ask_question(
     # fallback safety
     if len(filtered_chunks) == 0:
 
-        filtered_chunks = reranked_chunks[:3]
+        return {
 
+            "answer": (
+                "No sufficiently relevant information "
+                "was found for this question."
+            ),
+
+            "sources": []
+        }
 
     # =========================
     # REMOVE DUPLICATES

@@ -193,6 +193,36 @@ Content:
 
 
 # =========================
+# CONTEXT CLEANER
+# =========================
+
+def clean_retrieved_text(text):
+
+    # Remove excessive whitespace
+    text = re.sub(r'\s+', ' ', text)
+
+    # Remove repeated bullets/symbols
+    text = re.sub(r'[•●▪■]+', '•', text)
+
+    # Fix broken spacing around punctuation
+    text = re.sub(r'\s+([,:.;])', r'\1', text)
+
+    # Normalize skill separators
+    text = re.sub(r'\s*:\s*', ': ', text)
+
+    # Remove duplicate consecutive words
+    text = re.sub(
+        r'\b(\w+)( \1\b)+',
+        r'\1',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    return text.strip()
+
+
+
+# =========================
 # CONTEXT COMPRESSION
 # =========================
 
@@ -215,12 +245,30 @@ def compress_context(question, chunks):
 
             chunk = item
 
-        text = chunk.page_content
+        text = clean_retrieved_text(
+
+            chunk.page_content
+        )
 
         sentences = re.split(
 
-            r'(?<=[.!?])\s+',
-            text
+            r'''
+            (?<=[.!?])\s+            # sentence endings
+            |
+            \n{2,}                   # paragraph breaks
+            |
+            (?<=:)\s+                # section labels
+            |
+            (?<=;)\s+                # semicolon-separated structures
+            |
+            (?<=•)\s*                # bullet points
+            |
+            (?<=-)\s+(?=[A-Z0-9])    # list items
+            ''',
+
+            text,
+
+            flags=re.VERBOSE
         )
 
         relevant_sentences = []
@@ -237,7 +285,7 @@ def compress_context(question, chunks):
                 sentence_words
             )
 
-            if len(overlap) >= 2:
+            if len(overlap) >= 3:
 
                 relevant_sentences.append(sentence)
 
@@ -324,6 +372,68 @@ def generate_answer(
         return "The document does not contain enough information."
 
 
+    # =========================
+    # REMOVE DUPLICATE CHUNKS
+    # =========================
+
+    def remove_duplicate_chunks(chunks):
+
+        unique_chunks = []
+
+        seen_contents = set()
+
+
+        for item in chunks:
+
+            if isinstance(item, tuple):
+
+                chunk = item[0]
+
+            else:
+
+                chunk = item
+
+
+            # =========================
+            # NORMALIZE TEXT
+            # =========================
+
+            normalized_text = re.sub(
+
+                r'\s+',
+
+                ' ',
+
+                chunk.page_content.lower()
+            ).strip()
+
+
+            # =========================
+            # SKIP DUPLICATES
+            # =========================
+
+            if normalized_text in seen_contents:
+
+                continue
+
+
+            seen_contents.add(normalized_text)
+
+            unique_chunks.append(chunk)
+
+
+        return unique_chunks
+
+
+    # =========================
+    # REMOVE DUPLICATE CHUNKS
+    # =========================
+
+    unique_chunks = remove_duplicate_chunks(
+
+        reranked_chunks[:5]
+    )
+
 
     # =========================
     # CONTEXT COMPRESSION
@@ -333,7 +443,7 @@ def generate_answer(
 
         question,
 
-        reranked_chunks[:5]
+        unique_chunks
     )
 
 

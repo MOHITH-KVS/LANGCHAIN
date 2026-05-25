@@ -18,38 +18,140 @@ import re
 # CHUNK SETTINGS
 # =========================
 
-MAX_CHUNK_LENGTH = 1000
+MAX_CHUNK_LENGTH = 700
 
-MIN_CHUNK_LENGTH = 300
+MIN_CHUNK_LENGTH = 50
+
+CHUNK_OVERLAP = 120
 
 
 # =========================
-# CREATE CHUNKS FUNCTION
+# HEADING DETECTION
 # =========================
 
-def create_chunks(
+def is_heading(line):
 
-    text,
-
-    metadata
-):
+    line = line.strip()
 
 
     # =========================
-    # SMART STRUCTURE SPLITTING
+    # EMPTY CHECK
     # =========================
-    # Better for:
-    # - resumes
-    # - industrial docs
-    # - reports
-    # - OCR extracted PDFs
+
+    if not line:
+
+        return False
+
+
     # =========================
+    # VERY LONG LINES
+    # =========================
+
+    if len(line) > 80:
+
+        return False
+
+
+    # =========================
+    # ALL CAPS HEADINGS
+    # =========================
+
+    if line.isupper():
+
+        return True
+
+
+    # =========================
+    # SHORT HEADING WITH :
+    # =========================
+
+    if (
+
+        line.endswith(":")
+
+        and
+
+        len(line.split()) <= 6
+    ):
+
+        return True
+
+
+    # =========================
+    # COMMON HEADING PATTERNS
+    # =========================
+
+    heading_patterns = [
+
+        r"^skills$",
+        r"^technical skills$",
+        r"^education$",
+        r"^projects$",
+        r"^experience$",
+        r"^work experience$",
+        r"^certifications$",
+        r"^summary$",
+        r"^profile$",
+        r"^soft skills$",
+        r"^achievements$",
+        r"^internships$",
+        r"^languages$",
+        r"^hobbies$",
+        r"^strengths$",
+        r"^objective$",
+        r"^career objective$",
+        r"^professional summary$"
+    ]
+
+
+    line_lower = line.lower()
+
+
+    for pattern in heading_patterns:
+
+        if re.match(pattern, line_lower):
+
+            return True
+
+
+    return False
+
+
+# =========================
+# CLEAN TEXT
+# =========================
+
+def clean_line(line):
+
+    line = line.strip()
+
+
+    # Remove excessive spaces
+
+    line = re.sub(
+
+        r"\s+",
+
+        " ",
+
+        line
+    )
+
+
+    return line
+
+
+# =========================
+# SPLIT HUGE BLOCKS
+# =========================
+
+def split_large_block(block):
 
     sentences = re.split(
 
-        r'\n+|(?<=:)|(?<=\.)',
+        r'(?<=[.!?])\s+',
 
-        text
+        block
     )
 
 
@@ -57,16 +159,11 @@ def create_chunks(
 
     current_chunk = ""
 
-    chunk_id = 0
-
-
-    # =========================
-    # SEMANTIC GROUPING
-    # =========================
 
     for sentence in sentences:
 
         sentence = sentence.strip()
+
 
         if not sentence:
 
@@ -74,7 +171,7 @@ def create_chunks(
 
 
         # =========================
-        # ADD TO CURRENT CHUNK
+        # APPEND TO CURRENT CHUNK
         # =========================
 
         if (
@@ -88,32 +185,28 @@ def create_chunks(
 
 
         # =========================
-        # CREATE NEW CHUNK
+        # SAVE CURRENT CHUNK
         # =========================
 
         else:
 
-            # Avoid tiny chunks
-
             if len(current_chunk.strip()) >= MIN_CHUNK_LENGTH:
 
-                chunk_data = {
+                chunks.append(
 
-                    "content": current_chunk.strip(),
-
-                    "metadata": metadata,
-
-                    "chunk_id": chunk_id
-                }
-
-                chunks.append(chunk_data)
-
-                chunk_id += 1
+                    current_chunk.strip()
+                )
 
 
-            # Start new chunk
+            overlap_text = (
 
-            current_chunk = sentence
+                current_chunk[-CHUNK_OVERLAP:]
+            )
+
+            current_chunk = (
+
+                overlap_text + " " + sentence
+            )
 
 
     # =========================
@@ -122,16 +215,167 @@ def create_chunks(
 
     if len(current_chunk.strip()) >= MIN_CHUNK_LENGTH:
 
-        chunk_data = {
+        chunks.append(
 
-            "content": current_chunk.strip(),
+            current_chunk.strip()
+        )
 
-            "metadata": metadata,
 
-            "chunk_id": chunk_id
-        }
+    return chunks
 
-        chunks.append(chunk_data)
+
+# =========================
+# CREATE CHUNKS
+# =========================
+
+def create_chunks(
+
+    text,
+
+    metadata
+):
+
+
+    # =========================
+    # NORMALIZE TEXT
+    # =========================
+
+    text = text.replace(
+
+        "\r",
+
+        "\n"
+    )
+
+
+    lines = text.split("\n")
+
+
+    # =========================
+    # SEMANTIC BLOCKING
+    # =========================
+
+    semantic_blocks = []
+
+    current_block = []
+
+
+    for line in lines:
+
+        line = clean_line(line)
+
+
+        # =========================
+        # EMPTY LINE
+        # =========================
+
+        if not line:
+
+            continue
+
+
+        # =========================
+        # NEW HEADING
+        # =========================
+
+        if is_heading(line):
+
+
+            # Save previous block
+
+            if current_block:
+
+                semantic_blocks.append(
+
+                    "\n".join(current_block)
+                )
+
+                current_block = []
+
+
+            current_block.append(line)
+
+            continue
+
+
+        # =========================
+        # NORMAL CONTENT
+        # =========================
+
+        current_block.append(line)
+
+
+    # =========================
+    # FINAL BLOCK
+    # =========================
+
+    if current_block:
+
+        semantic_blocks.append(
+
+            "\n".join(current_block)
+        )
+
+
+    # =========================
+    # CREATE FINAL CHUNKS
+    # =========================
+
+    chunks = []
+
+
+    for block in semantic_blocks:
+
+        block = block.strip()
+
+
+        if not block:
+
+            continue
+
+
+        # =========================
+        # SMALL BLOCK
+        # =========================
+
+        if len(block) <= MAX_CHUNK_LENGTH:
+
+            final_chunks = [block]
+
+
+        # =========================
+        # LARGE BLOCK SPLITTING
+        # =========================
+
+        else:
+
+            final_chunks = split_large_block(block)
+
+
+        # =========================
+        # CREATE CHUNK OBJECTS
+        # =========================
+
+        for chunk_text in final_chunks:
+
+
+            chunk_text = chunk_text.strip()
+
+
+            if len(chunk_text) < MIN_CHUNK_LENGTH:
+
+                continue
+
+
+            chunk_data = {
+
+                "content": chunk_text,
+
+                "metadata": metadata
+            }
+
+
+            chunks.append(chunk_data)
 
 
     return chunks
