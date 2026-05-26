@@ -55,6 +55,57 @@ DOCUMENT_REGISTRY_PATH = "document_registry.pkl"
 
 
 # =========================
+# BUILD SEMANTIC DOCUMENT SUMMARY
+# =========================
+
+def build_document_summary(document_chunks):
+
+    scored_chunks = []
+
+
+    for chunk in document_chunks:
+
+        content = chunk["content"]
+
+
+        # semantic richness score
+        unique_words = len(set(content.lower().split()))
+
+        content_length = len(content)
+
+        score = unique_words + (content_length * 0.01)
+
+
+        scored_chunks.append(
+
+            (content, score)
+        )
+
+
+    # highest semantic chunks first
+    scored_chunks.sort(
+
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+
+    top_chunks = [
+
+        chunk[0]
+
+        for chunk in scored_chunks[:8]
+    ]
+
+
+    summary = "\n".join(top_chunks)
+
+
+    return summary[:4000]
+
+
+
+# =========================
 # PROCESS SINGLE PDF
 # =========================
 
@@ -71,7 +122,6 @@ def process_pdf_document(
 
     document_chunks = []
 
-    document_summary = ""
 
 
     # =========================
@@ -132,20 +182,21 @@ def process_pdf_document(
             document_chunks.extend(chunks)
 
 
-            # =========================
-            # BUILD DOCUMENT SUMMARY
-            # =========================
+    # =========================
+    # GENERATE FINAL DOCUMENT SUMMARY
+    # =========================
 
-            if len(document_summary) < 3000:
+    document_summary = build_document_summary(
 
-                document_summary += " " + section_content
+            document_chunks
+    )
 
 
     return (
 
         document_chunks,
 
-        document_summary[:3000],
+        document_summary,
 
         global_chunk_id
     )
