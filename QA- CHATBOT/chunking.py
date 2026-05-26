@@ -26,95 +26,163 @@ CHUNK_OVERLAP = 120
 
 
 # =========================
-# HEADING DETECTION
+# HEADING SCORE DETECTION
 # =========================
 
-def is_heading(line):
+def detect_heading_score(line):
 
-    line = line.strip()
+    score = 0
 
-
-    # =========================
-    # EMPTY CHECK
-    # =========================
+    line = clean_line(line)
 
     if not line:
 
-        return False
+        return 0
+
+
+    words = line.split()
+
+    word_count = len(words)
 
 
     # =========================
-    # VERY LONG LINES
+    # SHORT LINES
+    # =========================
+
+    if word_count <= 6:
+
+        score += 3
+
+
+    # =========================
+    # VERY SHORT HEADINGS
+    # =========================
+
+    if word_count <= 3:
+
+        score += 2
+
+
+    # =========================
+    # NO SENTENCE ENDING
+    # =========================
+
+    if not line.endswith((".", "?", "!")):
+
+        score += 2
+
+
+    # =========================
+    # TITLE CASE
+    # =========================
+
+    title_case_ratio = sum(
+
+        1 for word in words
+
+        if word[:1].isupper()
+
+    ) / max(len(words), 1)
+
+
+    if title_case_ratio >= 0.8:
+
+        score += 2
+
+
+    # =========================
+    # ALL CAPS
+    # =========================
+
+    uppercase_ratio = sum(
+
+        1 for c in line if c.isupper()
+
+    ) / max(len(line), 1)
+
+
+    if uppercase_ratio > 0.6:
+
+        score += 3
+
+
+    # =========================
+    # NUMBERED HEADINGS
+    # =========================
+
+    if re.match(r"^\d+(\.\d+)*", line):
+
+        score += 2
+
+
+    # =========================
+    # ROMAN HEADINGS
+    # =========================
+
+    if re.match(r"^[IVXLC]+\.", line):
+
+        score += 2
+
+
+    # =========================
+    # BULLET LINES PENALTY
+    # =========================
+
+    if line.startswith(("-", "•", "*")):
+
+        score -= 8
+
+
+    # =========================
+    # SYMBOL HEAVY PENALTY
+    # =========================
+
+    symbol_count = len(
+
+        re.findall(r"[:()\[\],]", line)
+    )
+
+    if symbol_count >= 2:
+
+        score -= 5
+
+
+    # =========================
+    # LONG LINE PENALTY
     # =========================
 
     if len(line) > 80:
 
-        return False
+        score -= 5
 
 
     # =========================
-    # ALL CAPS HEADINGS
+    # NUMBER DENSITY PENALTY
     # =========================
 
-    if line.isupper():
+    number_count = len(
 
-        return True
+        re.findall(r"\d", line)
+    )
 
+    if number_count >= 5:
 
-    # =========================
-    # SHORT HEADING WITH :
-    # =========================
-
-    if (
-
-        line.endswith(":")
-
-        and
-
-        len(line.split()) <= 6
-    ):
-
-        return True
+        score -= 3
 
 
-    # =========================
-    # COMMON HEADING PATTERNS
-    # =========================
-
-    heading_patterns = [
-
-        r"^skills$",
-        r"^technical skills$",
-        r"^education$",
-        r"^projects$",
-        r"^experience$",
-        r"^work experience$",
-        r"^certifications$",
-        r"^summary$",
-        r"^profile$",
-        r"^soft skills$",
-        r"^achievements$",
-        r"^internships$",
-        r"^languages$",
-        r"^hobbies$",
-        r"^strengths$",
-        r"^objective$",
-        r"^career objective$",
-        r"^professional summary$"
-    ]
+    return score
 
 
-    line_lower = line.lower()
+# =========================
+# FINAL HEADING DETECTION
+# =========================
 
+def is_heading(line):
 
-    for pattern in heading_patterns:
+    score = detect_heading_score(line)
 
-        if re.match(pattern, line_lower):
+    return score >= 6
 
-            return True
-
-
-    return False
 
 
 # =========================
@@ -257,8 +325,14 @@ def create_chunks(
 
     semantic_blocks = []
 
-    current_block = []
+    current_heading = "general"
 
+    current_content = []
+
+
+    # =========================
+    # STRUCTURE-AWARE PARSING
+    # =========================
 
     for line in lines:
 
@@ -275,46 +349,68 @@ def create_chunks(
 
 
         # =========================
-        # NEW HEADING
+        # NEW HEADING DETECTED
         # =========================
 
         if is_heading(line):
 
-
-            # Save previous block
-
-            if current_block:
-
-                semantic_blocks.append(
-
-                    "\n".join(current_block)
-                )
-
-                current_block = []
+            heading_candidate = line.lower().strip()
 
 
-            current_block.append(line)
+            # Ignore noisy headings
 
-            continue
+            invalid_heading = (
+
+                heading_candidate.startswith("-")
+                or heading_candidate.startswith("•")
+                or len(heading_candidate) < 3
+                or heading_candidate.count(":") > 1
+                or heading_candidate.count("(") > 1
+                or heading_candidate in [":", "-", "--"]
+
+            )
+
+
+            if not invalid_heading:
+
+                current_heading = heading_candidate
+
+
+                if current_content:
+
+                    semantic_blocks.append({
+
+                        "section": current_heading,
+
+                        "content": "\n".join(current_content)
+
+                    })
+
+                    current_content = []
+
+
+                continue
 
 
         # =========================
         # NORMAL CONTENT
         # =========================
 
-        current_block.append(line)
+        current_content.append(line)
 
 
     # =========================
-    # FINAL BLOCK
+    # FINAL SECTION
     # =========================
 
-    if current_block:
+    if current_content:
 
-        semantic_blocks.append(
+        semantic_blocks.append({
 
-            "\n".join(current_block)
-        )
+            "section": current_heading,
+
+            "content": "\n".join(current_content)
+        })
 
 
     # =========================
@@ -324,7 +420,12 @@ def create_chunks(
     chunks = []
 
 
-    for block in semantic_blocks:
+    for block_data in semantic_blocks:
+
+        section_name = block_data["section"]
+
+        block = block_data["content"]
+
 
         block = block.strip()
 
@@ -367,11 +468,20 @@ def create_chunks(
                 continue
 
 
+            # =========================
+            # SECTION-AWARE METADATA
+            # =========================
+
+            updated_metadata = metadata.copy()
+
+            updated_metadata["section"] = section_name
+
+
             chunk_data = {
 
                 "content": chunk_text,
 
-                "metadata": metadata
+                "metadata": updated_metadata
             }
 
 

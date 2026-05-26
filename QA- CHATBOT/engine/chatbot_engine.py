@@ -55,15 +55,15 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 # RETRIEVAL SETTINGS
 # =========================
 
-MIN_RELEVANCE_SCORE = 0.3
+MIN_RELEVANCE_SCORE = 0.20
 
-MAX_CONTEXT_CHUNKS = 3
+MAX_CONTEXT_CHUNKS = 2
 
-RELATIVE_SCORE_THRESHOLD = 0.30
+RELATIVE_SCORE_THRESHOLD = 0.50
 
-MAX_CONTEXT_TOKENS = 1800
+MAX_CONTEXT_TOKENS = 1200
 
-MIN_RERANK_SCORE = 0.15
+MIN_RERANK_SCORE = -12.0
 
 MIN_CONTEXT_CHUNKS = 1
 
@@ -351,7 +351,7 @@ def ask_question(
     # ROUTING CONFIDENCE CHECK
     # =========================
 
-    if document_score < 0.30:
+    if document_score < 0.20:
 
         selected_document = None
 
@@ -404,6 +404,18 @@ def ask_question(
         print(chunk.page_content[:300])
 
         print("\n" + "=" * 50)
+
+
+    print("\nRETRIEVED CHUNKS COUNT:")
+    print(len(retrieved_chunks))
+
+    for chunk, score in retrieved_chunks[:3]:
+
+        print("\nCHUNK:")
+        print(chunk.page_content[:300])
+
+        print("\nMETADATA:")
+        print(chunk.metadata)
 
 
     # =========================
@@ -462,28 +474,21 @@ def ask_question(
             chunk = item[0]
             score = item[1]
 
-        else:
-
-            chunk = item
-            score = 0
-
-        if score >= MIN_RERANK_SCORE:
-
             filtered_chunks.append((chunk, score))
 
 
-    # fallback safety
-    if len(filtered_chunks) == 0:
+    # =========================
+    # SORT ONLY BY RERANK SCORE
+    # =========================
 
-        return {
+    filtered_chunks = sorted(
 
-            "answer": (
-                "No sufficiently relevant information "
-                "was found for this question."
-            ),
+        filtered_chunks,
 
-            "sources": []
-        }
+        key=lambda x: x[1],
+
+        reverse=True
+    )
 
     # =========================
     # REMOVE DUPLICATES
@@ -544,20 +549,6 @@ def ask_question(
     # RETRIEVAL CONFIDENCE CHECK
     # =========================
 
-    if top_rerank_score < MIN_RERANK_SCORE:
-
-        return {
-
-            "answer": (
-
-                "The retrieved information is not "
-
-                "confident enough to answer reliably."
-            ),
-
-            "sources": []
-        }
-
 
     if len(filtered_chunks) < MIN_CONTEXT_CHUNKS:
 
@@ -574,183 +565,73 @@ def ask_question(
         }
 
 
-    
     # =========================
-    # STABLE CONTEXT PACKING
+    # CONTEXT PACKING
     # =========================
 
     expanded_chunks = []
 
     seen_chunks = set()
 
-    used_sections = set()
-
     current_token_count = 0
 
 
-    # =========================
-    # TAKE TOP RERANKED CHUNKS
-    # =========================
+    for chunk, score in filtered_chunks[:MAX_CONTEXT_CHUNKS]:
 
-    top_chunks = filtered_chunks[:MAX_CONTEXT_CHUNKS]
-
-
-    for chunk, score in top_chunks:
-
-
-        target_section = chunk.metadata["section"]
-
-
-        # =========================
-        # DIVERSITY CONTROL
-        # =========================
-
-        section_key = (
+        unique_key = (
 
             chunk.metadata["source"],
-
-            target_section
+            chunk.metadata["page"],
+            chunk.metadata["chunk_id"]
         )
 
-
-        # Avoid excessive duplicate sections
-
-        if section_key in used_sections:
+        if unique_key in seen_chunks:
 
             continue
 
+        estimated_tokens = count_tokens(
 
-        used_sections.add(section_key)
+            chunk.page_content
+        )
 
+        if (
 
-        base_chunk_id = chunk.metadata["chunk_id"]
+            current_token_count + estimated_tokens
 
+            >
 
-        # =========================
-        # CONTEXT WINDOW
-        # =========================
+            MAX_CONTEXT_TOKENS
+        ):
 
-        nearby_chunk_ids = [
+            continue
 
-            base_chunk_id - 1,
+        print("\nFINAL CONTEXT CHUNK:")
+        print(chunk.page_content[:500])
 
-            base_chunk_id,
+        print("\nFINAL SCORE:")
+        print(score)
 
-            base_chunk_id + 1
-        ]
+        print("\n" + "=" * 60)
 
+        expanded_chunks.append(chunk)
 
-        for nearby_id in nearby_chunk_ids:
+        current_token_count += estimated_tokens
 
-
-            if nearby_id not in chunk_id_index:
-
-                continue
-
-
-            nearby_chunk = chunk_id_index[nearby_id]
-
-            if (
-                nearby_chunk["metadata"]["source"]
-                !=
-                chunk.metadata["source"]
-            ):
-                continue
+        seen_chunks.add(unique_key)
 
 
-            # =========================
-            # SAME DOCUMENT CHECK
-            # =========================
+    # =========================
+    # GENERATION INPUT
+    # =========================
 
-            if selected_document:
+    generation_chunks = []
 
-                if (
+    for chunk in expanded_chunks:
 
-                    nearby_chunk["metadata"]["source"]
+        generation_chunks.append(
 
-                    !=
-
-                    selected_document
-                ):
-
-                    continue
-
-
-            # =========================
-            # SAME SECTION CHECK
-            # =========================
-
-            if (
-
-                nearby_chunk["metadata"]["section"]
-
-                !=
-
-                target_section
-            ):
-
-                continue
-
-
-            metadata = {
-
-                **nearby_chunk["metadata"],
-
-                "chunk_id": nearby_chunk["chunk_id"]
-            }
-
-
-            unique_key = (
-
-                metadata["source"],
-
-                metadata["page"],
-
-                metadata["chunk_id"]
-            )
-
-
-            if unique_key in seen_chunks:
-
-                continue
-
-
-            content = nearby_chunk["content"]
-
-            estimated_tokens = count_tokens(content)
-
-
-            # =========================
-            # TOKEN BUDGET CONTROL
-            # =========================
-
-            if (
-
-                current_token_count + estimated_tokens
-
-                >
-
-                MAX_CONTEXT_TOKENS
-            ):
-
-                continue
-
-
-            expanded_chunks.append(
-
-                Document(
-
-                    page_content=content,
-
-                    metadata=metadata
-                )
-            )
-
-
-            current_token_count += estimated_tokens
-
-            seen_chunks.add(unique_key)
-
+            (chunk, 1.0)
+        )
 
     # =========================
     # GENERATE ANSWER
@@ -760,7 +641,7 @@ def ask_question(
 
         question,
 
-        [(chunk, 0) for chunk in expanded_chunks],
+        generation_chunks,
 
         conversation_context
     )

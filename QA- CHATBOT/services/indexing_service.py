@@ -40,6 +40,9 @@ from vector_store import (
     add_documents_to_vector_store
 )
 
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
 
 # =========================
 # PATHS
@@ -54,55 +57,109 @@ CHUNKS_PATH = "chunks.pkl"
 DOCUMENT_REGISTRY_PATH = "document_registry.pkl"
 
 
-# =========================
-# BUILD SEMANTIC DOCUMENT SUMMARY
-# =========================
-
 def build_document_summary(document_chunks):
 
-    scored_chunks = []
+    # =========================
+    # EMPTY SAFETY
+    # =========================
+
+    if not document_chunks:
+
+        return ""
 
 
-    for chunk in document_chunks:
+    # =========================
+    # GET CHUNK CONTENTS
+    # =========================
 
-        content = chunk["content"]
+    chunk_texts = [
 
+        chunk["content"]
 
-        # semantic richness score
-        unique_words = len(set(content.lower().split()))
-
-        content_length = len(content)
-
-        score = unique_words + (content_length * 0.01)
-
-
-        scored_chunks.append(
-
-            (content, score)
-        )
-
-
-    # highest semantic chunks first
-    scored_chunks.sort(
-
-        key=lambda x: x[1],
-        reverse=True
-    )
-
-
-    top_chunks = [
-
-        chunk[0]
-
-        for chunk in scored_chunks[:8]
+        for chunk in document_chunks
     ]
 
 
-    summary = "\n".join(top_chunks)
+    # =========================
+    # CREATE EMBEDDINGS
+    # =========================
+
+    chunk_embeddings = embedding_model.embed_documents(
+        chunk_texts
+    )
 
 
-    return summary[:4000]
+    # =========================
+    # DOCUMENT CENTROID
+    # =========================
 
+    document_centroid = np.mean(
+
+        chunk_embeddings,
+
+        axis=0
+    ).reshape(1, -1)
+
+
+    # =========================
+    # CHUNK SIMILARITY TO DOCUMENT
+    # =========================
+
+    similarities = cosine_similarity(
+
+        chunk_embeddings,
+
+        document_centroid
+    ).flatten()
+
+
+    # =========================
+    # RANK CHUNKS
+    # =========================
+
+    ranked_indices = np.argsort(
+
+        similarities
+
+    )[::-1]
+
+
+    # =========================
+    # SELECT REPRESENTATIVE CHUNKS
+    # =========================
+
+    selected_chunks = []
+
+
+    for idx in ranked_indices:
+
+        content = chunk_texts[idx]
+
+        # Skip extremely tiny chunks
+
+        if len(content.strip()) < 80:
+
+            continue
+
+
+        selected_chunks.append(content)
+
+
+        # Industrial summary limit
+
+        if len(selected_chunks) >= 6:
+
+            break
+
+
+    # =========================
+    # FINAL DOCUMENT SUMMARY
+    # =========================
+
+    summary = "\n".join(selected_chunks)
+
+
+    return summary[:3000]
 
 
 # =========================
@@ -547,3 +604,9 @@ def index_documents():
     print("\nDOCUMENT REGISTRY CREATED")
 
     print("\nMULTI-DOCUMENT INDEXING COMPLETED")
+
+    print("\nTOTAL CHUNKS STORED:")
+    print(len(all_chunks))
+
+    print("\nTOTAL DOCUMENTS REGISTERED:")
+    print(len(document_registry))

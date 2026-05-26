@@ -1,32 +1,125 @@
-#GOAL OF THIS FILE
+# =========================
+# GOAL OF THIS FILE
+# =========================
 
-#This file should ONLY:
-#| Responsibility              | Why                         |
-#| --------------------------- | --------------------------- |
-#| Score retrieved chunks      | relevance estimation        |
-#| Rerank chunks               | improve retrieval precision |
-#| Select best chunks          | stronger context quality    |
-#| Improve retrieval relevance | reduce noisy retrieval      |
+# This file should ONLY:
+#
+# | Responsibility              | Why                         |
+# | --------------------------- | --------------------------- |
+# | Score retrieved chunks      | relevance estimation        |
+# | Rerank chunks               | improve retrieval precision |
+# | Select best chunks          | stronger context quality    |
+# | Improve retrieval relevance | reduce noisy retrieval      |
+
+
+# =========================
+# IMPORTS
+# =========================
 
 from sentence_transformers import CrossEncoder
 
+import re
+
+
+# =========================
+# LOAD CROSS-ENCODER MODEL
+# =========================
+
 reranker_model = CrossEncoder(
+
     "cross-encoder/ms-marco-MiniLM-L-6-v2"
 )
 
 
-def rerank_chunks(query, retrieved_chunks):
+# =========================
+# TEXT NORMALIZATION
+# =========================
+
+def normalize_text(text):
+
+    text = text.lower()
+
+    text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
+
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
+# =========================
+# TOKEN EXTRACTION
+# =========================
+
+def extract_keywords(text):
+
+    normalized = normalize_text(text)
+
+    return set(normalized.split())
+
+
+# =========================
+# LEXICAL OVERLAP SCORE
+# =========================
+
+def lexical_overlap_score(
+
+    query,
+
+    content
+):
+
+    query_words = extract_keywords(query)
+
+    content_words = extract_keywords(content)
+
+
+    if len(query_words) == 0:
+
+        return 0
+
+
+    overlap = query_words.intersection(content_words)
+
+
+    return len(overlap)
+
+
+# =========================
+# RERANK CHUNKS
+# =========================
+
+def rerank_chunks(
+
+    query,
+
+    retrieved_chunks
+):
+
+
+    # =========================
+    # EMPTY CHECK
+    # =========================
+
+    if len(retrieved_chunks) == 0:
+
+        return []
+
+
+    # =========================
+    # PREPARE INPUTS
+    # =========================
 
     pairs = []
 
     documents = []
 
 
-    # =========================
-    # PREPARE CROSS-ENCODER INPUT
-    # =========================
-
     for item in retrieved_chunks:
+
+
+        # =========================
+        # HANDLE TUPLE FORMAT
+        # =========================
 
         if isinstance(item, tuple):
 
@@ -35,6 +128,7 @@ def rerank_chunks(query, retrieved_chunks):
         else:
 
             chunk = item
+
 
         pairs.append(
 
@@ -45,31 +139,67 @@ def rerank_chunks(query, retrieved_chunks):
 
 
     # =========================
-    # GET RERANK SCORES
+    # CROSS-ENCODER SCORING
     # =========================
 
-    scores = reranker_model.predict(pairs)
+    semantic_scores = reranker_model.predict(pairs)
 
 
-    # =========================
-    # ATTACH SCORES
-    # =========================
-
-    scored_chunks = [
-
-        (doc, float(score))
-
-        for doc, score in zip(documents, scores)
-    ]
+    reranked_results = []
 
 
     # =========================
-    # SORT BY RERANK SCORE
+    # HYBRID SCORING
     # =========================
 
-    ranked_chunks = sorted(
+    for doc, semantic_score in zip(
 
-        scored_chunks,
+        documents,
+
+        semantic_scores
+    ):
+
+
+        lexical_score = lexical_overlap_score(
+
+            query,
+
+            doc.page_content
+        )
+
+
+        # =========================
+        # FINAL HYBRID SCORE
+        # =========================
+
+        final_score = (
+
+            float(semantic_score)
+
+            +
+
+            (lexical_score * 0.50)
+        )
+
+
+        reranked_results.append(
+
+            (
+
+                doc,
+
+                final_score
+            )
+        )
+
+
+    # =========================
+    # FINAL SORTING
+    # =========================
+
+    reranked_results = sorted(
+
+        reranked_results,
 
         key=lambda x: x[1],
 
@@ -77,4 +207,4 @@ def rerank_chunks(query, retrieved_chunks):
     )
 
 
-    return ranked_chunks
+    return reranked_results

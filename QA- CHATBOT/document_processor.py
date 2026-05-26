@@ -260,65 +260,128 @@ def split_into_sections(text):
             continue
 
 
-        # ==========================================
-        # INDUSTRIAL DYNAMIC HEADING DETECTION
-        # ==========================================
+        # =====================================================
+        # STRUCTURAL HEADING SCORE
+        # =====================================================
 
         words = clean_line.split()
 
+        word_count = len(words)
+
+
         uppercase_ratio = sum(
+
             1 for c in clean_line if c.isupper()
+
         ) / max(len(clean_line), 1)
-
-        is_short = len(words) <= 8
-
-        has_no_fullstop = not clean_line.endswith(".")
-
-        valid_words = [
-
-            word for word in words
-
-            if word[0].isalnum()
-        ]
 
 
         title_case_ratio = sum(
 
-            1 for word in valid_words
+            1 for word in words
 
             if word[:1].isupper()
 
-        ) / max(len(valid_words), 1)
+        ) / max(len(words), 1)
 
-        starts_with_bullet = clean_line.startswith(("-", "•", "*"))
 
-        is_heading = (
+        has_terminal_punctuation = clean_line.endswith(
 
-            (
-                clean_line.isupper()
-                and uppercase_ratio > 0.6
-                and is_short
-                and not starts_with_bullet
-            )
-
-            or
-
-            (
-                title_case_ratio > 0.7
-                and is_short
-                and not starts_with_bullet
-                and has_no_fullstop
-            )
-
-            or
-
-            clean_line.endswith(":")
+            (".", ",", ";", "?")
         )
 
 
-        # ==========================================
+        starts_with_bullet = clean_line.startswith(
+
+            ("-", "•", "*")
+        )
+
+        contains_many_symbols = len(
+
+            re.findall(r"[:()\-]", clean_line)
+
+        ) >= 2
+
+
+        contains_numbers = bool(
+
+            re.search(r"\d", clean_line)
+        )
+
+
+        # =====================================================
+        # HEADING SCORE
+        # =====================================================
+
+        heading_score = 0
+
+
+        # Short lines are likely headings
+
+        if word_count <= 8:
+
+            heading_score += 2
+
+
+        # Uppercase headings
+
+        if uppercase_ratio > 0.6:
+
+            heading_score += 2
+
+
+        # Title case headings
+
+        if title_case_ratio > 0.7:
+
+            heading_score += 2
+
+
+        # Headings usually don't end with punctuation
+
+        if not has_terminal_punctuation:
+
+            heading_score += 1
+
+
+        # Bullet lines are almost never headings
+
+        if starts_with_bullet:
+
+            heading_score -= 8
+
+
+        # Symbol-heavy lines are usually list items
+
+        if contains_many_symbols:
+
+            heading_score -= 5
+
+
+        # Number-heavy lines are usually content
+
+        if contains_numbers:
+
+            heading_score -= 1
+
+
+        # Long lines are usually content
+
+        if len(clean_line) > 80:
+
+            heading_score -= 3
+
+
+        # =====================================================
+        # FINAL HEADING DECISION
+        # =====================================================
+
+        is_heading = heading_score >= 4
+
+
+        # =====================================================
         # SAVE PREVIOUS SECTION
-        # ==========================================
+        # =====================================================
 
         if is_heading:
 
@@ -342,9 +405,9 @@ def split_into_sections(text):
             current_content.append(clean_line)
 
 
-    # ==========================================
+    # =====================================================
     # FINAL SECTION
-    # ==========================================
+    # =====================================================
 
     if current_content:
 
