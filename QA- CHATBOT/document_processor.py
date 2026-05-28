@@ -319,10 +319,25 @@ def split_into_sections(text):
 
 
         # =====================================================
-        # FINAL HEADING DECISION
+        # INDUSTRIAL HEADING DETECTION
         # =====================================================
 
-        is_heading = heading_score >= 5
+        is_heading = (
+
+            word_count <= 6
+
+            and not starts_with_bullet
+
+            and not has_terminal_punctuation
+
+            and not contains_many_symbols
+
+            and not contains_numbers
+
+            and len(clean_line) < 50
+
+            and title_case_ratio > 0.6
+        )
 
 
         # =====================================================

@@ -812,3 +812,5 @@ def index_documents():
 
     print("\nTOTAL DOCUMENTS REGISTERED:")
     print(len(document_registry))
+
+    return all_chunks
