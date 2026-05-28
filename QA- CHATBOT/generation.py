@@ -222,131 +222,6 @@ def clean_retrieved_text(text):
 
 
 
-# =========================
-# CONTEXT COMPRESSION
-# =========================
-
-def compress_context(question, chunks):
-
-    compressed_chunks = []
-
-    query_words = set(
-
-        re.findall(r'\w+', question.lower())
-    )
-
-    for item in chunks:
-
-        if isinstance(item, tuple):
-
-            chunk = item[0]
-
-        else:
-
-            chunk = item
-
-        text = clean_retrieved_text(
-
-            chunk.page_content
-        )
-
-        sentences = re.split(
-
-            r'''
-            (?<=[.!?])\s+            # sentence endings
-            |
-            \n{2,}                   # paragraph breaks
-            |
-            (?<=:)\s+                # section labels
-            |
-            (?<=;)\s+                # semicolon-separated structures
-            |
-            (?<=•)\s*                # bullet points
-            |
-            (?<=-)\s+(?=[A-Z0-9])    # list items
-            ''',
-
-            text,
-
-            flags=re.VERBOSE
-        )
-
-        relevant_sentences = []
-
-        for sentence in sentences:
-
-            sentence_words = set(
-
-                sentence.lower().split()
-            )
-
-            overlap = query_words.intersection(
-
-                sentence_words
-            )
-
-            if len(overlap) >= 3:
-
-                relevant_sentences.append(sentence)
-
-        # fallback
-        if not relevant_sentences:
-
-            relevant_sentences = sentences[:2]
-
-        compressed_text = " ".join(
-
-        relevant_sentences
-    )
-
-
-        # =========================
-        # COMPRESSION DEBUG LOGS
-        # =========================
-
-        #print("\n" + "="*50)
-
-        #print("ORIGINAL CHUNK:\n")
-
-        #print(text[:700])
-
-        #print("\n" + "-"*50)
-
-        #print("COMPRESSED CHUNK:\n")
-
-        #print(compressed_text[:700])
-
-        #print("\n" + "-"*50)
-
-        #print(
-
-        #    f"ORIGINAL LENGTH: {len(text)} characters"
-        #)
-
-        #print(
-
-        #    f"COMPRESSED LENGTH: {len(compressed_text)} characters"
-        #)
-
-        #reduction = (
-
-        #    len(text) - len(compressed_text)
-        #)
-
-        #print(
-
-        #    f"REDUCED BY: {reduction} characters"
-        #)
-
-        #print("="*50 + "\n")
-
-
-        chunk.page_content = compressed_text
-
-        compressed_chunks.append(chunk)
-
-    return compressed_chunks
-
 
 
 # =========================
@@ -436,24 +311,12 @@ def generate_answer(
 
 
     # =========================
-    # CONTEXT COMPRESSION
-    # =========================
-
-    compressed_chunks = compress_context(
-
-        question,
-
-        unique_chunks
-    )
-
-
-    # =========================
     # CREATE GROUNDED CONTEXT
     # =========================
 
     context = build_grounded_context(
 
-        compressed_chunks
+        unique_chunks
     )
     
 

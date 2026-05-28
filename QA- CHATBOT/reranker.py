@@ -27,7 +27,7 @@ import re
 
 reranker_model = CrossEncoder(
 
-    "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    "BAAI/bge-reranker-base"
 )
 
 
@@ -169,16 +169,21 @@ def rerank_chunks(
 
 
         # =========================
-        # FINAL HYBRID SCORE
+        # NORMALIZED HYBRID SCORE
         # =========================
+
+        normalized_semantic = float(semantic_score)
+
+        normalized_lexical = lexical_score / 10
+
 
         final_score = (
 
-            float(semantic_score)
+            normalized_semantic * 0.85
 
             +
 
-            (lexical_score * 0.50)
+            normalized_lexical * 0.15
         )
 
 

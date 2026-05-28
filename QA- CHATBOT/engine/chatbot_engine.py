@@ -57,7 +57,7 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 
 MIN_RELEVANCE_SCORE = 0.20
 
-MAX_CONTEXT_CHUNKS = 2
+MAX_CONTEXT_CHUNKS = 5
 
 RELATIVE_SCORE_THRESHOLD = 0.50
 
@@ -578,6 +578,9 @@ def ask_question(
 
     for chunk, score in filtered_chunks[:MAX_CONTEXT_CHUNKS]:
 
+        if len(chunk.page_content.strip()) < 40:
+            continue
+
         unique_key = (
 
             chunk.metadata["source"],
@@ -626,11 +629,11 @@ def ask_question(
 
     generation_chunks = []
 
-    for chunk in expanded_chunks:
+    for chunk, score in filtered_chunks[:MAX_CONTEXT_CHUNKS]:
 
         generation_chunks.append(
 
-            (chunk, 1.0)
+            (chunk, score)
         )
 
     # =========================

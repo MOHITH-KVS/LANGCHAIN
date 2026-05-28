@@ -20,7 +20,7 @@ import re
 
 MAX_CHUNK_LENGTH = 700
 
-MIN_CHUNK_LENGTH = 50
+MIN_CHUNK_LENGTH = 180
 
 CHUNK_OVERLAP = 120
 
@@ -62,6 +62,13 @@ def detect_heading_score(line):
 
         score += 2
 
+    # =========================
+    # SINGLE WORD HEADING BOOST
+    # =========================
+
+    if word_count == 1:
+
+        score += 3
 
     # =========================
     # NO SENTENCE ENDING
@@ -142,9 +149,9 @@ def detect_heading_score(line):
         re.findall(r"[:()\[\],]", line)
     )
 
-    if symbol_count >= 2:
+    if symbol_count >= 4:
 
-        score -= 5
+        score -= 3
 
 
     # =========================
@@ -181,7 +188,7 @@ def is_heading(line):
 
     score = detect_heading_score(line)
 
-    return score >= 6
+    return score >= 4
 
 
 
@@ -232,6 +239,16 @@ def split_large_block(block):
 
         sentence = sentence.strip()
 
+        # =========================
+        # SKIP VERY SMALL FRAGMENTS
+        # =========================
+
+        if len(sentence) < 40:
+
+            current_chunk += " " + sentence
+
+            continue
+
 
         if not sentence:
 
@@ -243,10 +260,8 @@ def split_large_block(block):
         # =========================
 
         if (
-
             len(current_chunk) + len(sentence)
-
-            < MAX_CHUNK_LENGTH
+            <= MAX_CHUNK_LENGTH
         ):
 
             current_chunk += " " + sentence
@@ -354,10 +369,12 @@ def create_chunks(
 
         if is_heading(line):
 
-            heading_candidate = line.lower().strip()
+            heading_candidate = re.sub(
+                r"[^a-zA-Z0-9\s]",
+                "",
+                line.lower()
+            ).strip()
 
-
-            # Ignore noisy headings
 
             invalid_heading = (
 
@@ -373,8 +390,10 @@ def create_chunks(
 
             if not invalid_heading:
 
-                current_heading = heading_candidate
 
+                # =========================
+                # SAVE PREVIOUS SECTION
+                # =========================
 
                 if current_content:
 
@@ -388,6 +407,12 @@ def create_chunks(
 
                     current_content = []
 
+
+                # =========================
+                # UPDATE TO NEW HEADING
+                # =========================
+
+                current_heading = heading_candidate
 
                 continue
 
@@ -463,9 +488,11 @@ def create_chunks(
             chunk_text = chunk_text.strip()
 
 
-            if len(chunk_text) < MIN_CHUNK_LENGTH:
+            if len(chunk_text.strip()) < MIN_CHUNK_LENGTH:
 
                 continue
+
+                
 
 
             # =========================
