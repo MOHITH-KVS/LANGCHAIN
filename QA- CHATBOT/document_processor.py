@@ -78,62 +78,8 @@ def clean_text(text):
     text = re.sub(r'\b\d+(\.\d+)+', '', text)
 
 
-    # =====================================================
-    # INDUSTRIAL HEADING PRESERVATION
-    # =====================================================
+    
 
-    headings = [
-
-        "CAREER OBJECTIVE",
-
-        "SUMMARY",
-
-        "SKILLS",
-
-        "TECHNICAL SKILLS",
-
-        "SOFT SKILLS",
-
-        "ADDITIONAL SKILLS",
-
-        "EDUCATION",
-
-        "EXPERIENCE",
-
-        "INTERNSHIPS",
-
-        "PROJECTS",
-
-        "CERTIFICATIONS",
-
-        "ACHIEVEMENTS",
-
-        "LANGUAGES",
-
-        "HOBBIES",
-
-        "DECLARATION",
-
-        "CONTACT",
-
-        "PROFILE",
-
-        "LINKS"
-    ]
-
-
-    for heading in headings:
-
-        text = re.sub(
-
-            rf'\b{heading}\b',
-
-            f'\n\n{heading}\n',
-
-            text,
-
-            flags=re.IGNORECASE
-        )
 
 
 
@@ -318,9 +264,9 @@ def split_into_sections(text):
 
         # Short lines are likely headings
 
-        if word_count <= 8:
+        if word_count <= 6:
 
-            heading_score += 2
+            heading_score += 1
 
 
         # Uppercase headings
@@ -332,9 +278,9 @@ def split_into_sections(text):
 
         # Title case headings
 
-        if title_case_ratio > 0.7:
+        if title_case_ratio > 0.85:
 
-            heading_score += 2
+            heading_score += 1
 
 
         # Headings usually don't end with punctuation
@@ -376,7 +322,7 @@ def split_into_sections(text):
         # FINAL HEADING DECISION
         # =====================================================
 
-        is_heading = heading_score >= 4
+        is_heading = heading_score >= 5
 
 
         # =====================================================

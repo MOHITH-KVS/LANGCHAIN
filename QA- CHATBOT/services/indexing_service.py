@@ -141,6 +141,24 @@ def build_document_summary(document_chunks):
 
             continue
 
+        # Skip noisy chunks
+
+        bad_patterns = [
+
+            "page",
+            "figure",
+            "table",
+            "references",
+            "copyright",
+            "journal",
+            "www",
+            "http"
+        ]
+
+        if any(pattern in content.lower() for pattern in bad_patterns):
+
+            continue
+
 
         selected_chunks.append(content)
 
@@ -160,6 +178,110 @@ def build_document_summary(document_chunks):
 
 
     return summary[:3000]
+
+
+# =========================
+# EXTRACT DOCUMENT KEYWORDS
+# =========================
+
+def extract_document_keywords(document_chunks):
+
+    # =========================
+    # COLLECT TEXT
+    # =========================
+
+    combined_text = " ".join(
+
+        chunk["content"]
+
+        for chunk in document_chunks
+    )
+
+
+    combined_text = combined_text.lower()
+
+
+    # =========================
+    # TOKENIZATION
+    # =========================
+
+    words = combined_text.split()
+
+
+    # =========================
+    # CLEAN TOKENS
+    # =========================
+
+    cleaned_words = []
+
+
+    for word in words:
+
+        word = word.strip(
+
+            ".,:;!?()[]{}<>\"'"
+        )
+
+
+        # Skip tiny tokens
+
+        if len(word) < 4:
+
+            continue
+
+
+        # Skip numeric-heavy tokens
+
+        if word.isdigit():
+
+            continue
+
+
+        cleaned_words.append(word)
+
+
+    # =========================
+    # WORD FREQUENCY
+    # =========================
+
+    frequency = {}
+
+
+    for word in cleaned_words:
+
+        frequency[word] = (
+
+            frequency.get(word, 0) + 1
+        )
+
+
+    # =========================
+    # SORT KEYWORDS
+    # =========================
+
+    sorted_keywords = sorted(
+
+        frequency.items(),
+
+        key=lambda x: x[1],
+
+        reverse=True
+    )
+
+
+    # =========================
+    # TOP KEYWORDS
+    # =========================
+
+    keywords = [
+
+        word
+
+        for word, _ in sorted_keywords[:25]
+    ]
+
+
+    return keywords
 
 
 # =========================
@@ -249,11 +371,23 @@ def process_pdf_document(
     )
 
 
+    # =========================
+    # EXTRACT DOCUMENT KEYWORDS
+    # =========================
+
+    document_keywords = extract_document_keywords(
+
+        document_chunks
+    )
+
+
     return (
 
         document_chunks,
 
         document_summary,
+
+        document_keywords,
 
         global_chunk_id
     )
@@ -408,6 +542,8 @@ def index_single_document(
 
         document_summary,
 
+        document_keywords,
+
         global_chunk_id
 
     ) = process_pdf_document(
@@ -438,10 +574,44 @@ def index_single_document(
     )
 
 
-    document_registry[pdf_file] = (
+    document_registry[pdf_file] = {
 
-        document_summary
-    )
+        "summary": document_summary,
+
+        "keywords": document_keywords,
+
+        "sample_chunks": [
+
+            chunk["content"][:500]
+
+            for chunk in sorted(
+
+                document_chunks,
+
+                key=lambda x: len(x["content"]),
+
+                reverse=True
+
+            )[:15]
+        ]
+    }
+
+    print("\n========================")
+    print("DOCUMENT PROFILE DEBUG")
+    print("========================")
+
+    print("FILE:", pdf_file)
+
+    print("\nSUMMARY:")
+    print(document_summary[:500])
+
+    print("\nKEYWORDS:")
+    print(document_keywords[:20])
+
+    print("\nSAMPLE CHUNKS:")
+    for chunk in document_registry[pdf_file]["sample_chunks"][:3]:
+
+        print("-", chunk[:200])
 
 
     # =========================
@@ -540,12 +710,10 @@ def index_documents():
 
         (
 
-            document_chunks,
-
-            document_summary,
-
-            global_chunk_id
-
+             document_chunks,
+             document_summary,
+             document_keywords,
+             global_chunk_id
         ) = process_pdf_document(
 
             pdf_path,
@@ -560,10 +728,44 @@ def index_documents():
         )
 
 
-        document_registry[pdf_file] = (
+        document_registry[pdf_file] = {
 
-            document_summary
-        )
+            "summary": document_summary,
+
+            "keywords": document_keywords,
+
+            "sample_chunks": [
+
+                chunk["content"][:500]
+
+                for chunk in sorted(
+
+                    document_chunks,
+
+                    key=lambda x: len(x["content"]),
+
+                    reverse=True
+
+                )[:15]
+            ]
+        }
+
+        print("\n========================")
+        print("DOCUMENT PROFILE DEBUG")
+        print("========================")
+
+        print("FILE:", pdf_file)
+
+        print("\nSUMMARY:")
+        print(document_summary[:500])
+
+        print("\nKEYWORDS:")
+        print(document_keywords[:20])
+
+        print("\nSAMPLE CHUNKS:")
+        for chunk in document_registry[pdf_file]["sample_chunks"][:3]:
+
+            print("-", chunk[:200])
 
 
     # =========================

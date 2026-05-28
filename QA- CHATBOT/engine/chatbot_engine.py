@@ -29,11 +29,17 @@ from query_rewriter import rewrite_query
 
 from document_router import route_documents
 
-from engine.bm25_retriever import (
 
-    create_bm25_index,
 
-    bm25_search
+from resource_manager import (
+
+    initialize_resources,
+
+    get_vector_store,
+
+    get_all_chunks,
+
+    get_bm25_index
 )
 
 
@@ -61,9 +67,9 @@ MAX_CONTEXT_CHUNKS = 5
 
 RELATIVE_SCORE_THRESHOLD = 0.50
 
-MAX_CONTEXT_TOKENS = 1200
+MAX_CONTEXT_TOKENS = 2500
 
-MIN_RERANK_SCORE = -12.0
+MIN_RERANK_SCORE = -5.0
 
 MIN_CONTEXT_CHUNKS = 1
 
@@ -147,61 +153,15 @@ def ask_question(
     document_name=None
 ):
     
-        # =========================
-    # LOAD SAVED CHUNKS
+    # =========================
+    # LOAD CACHED RESOURCES
     # =========================
 
-    if os.path.exists("chunks.pkl"):
+    all_chunks = get_all_chunks()
 
-        with open("chunks.pkl", "rb") as f:
+    vector_store = get_vector_store()
 
-            all_chunks = pickle.load(f)
-
-    else:
-
-        return {
-
-            "answer": (
-
-                "No documents are uploaded yet. "
-
-                "Please upload PDFs first."
-            ),
-
-            "sources": []
-        }
-
-
-    # =========================
-    # LOAD VECTOR DATABASE
-    # =========================
-
-    if os.path.exists("faiss_index"):
-
-        vector_store = FAISS.load_local(
-
-            "faiss_index",
-
-            embedding_model,
-
-            allow_dangerous_deserialization=True
-        )
-
-    else:
-
-        return {
-
-            "answer": "Vector database not found.",
-
-            "sources": []
-        }
-
-
-    # =========================
-    # CREATE BM25 INDEX
-    # =========================
-
-    bm25 = create_bm25_index(all_chunks)
+    bm25 = get_bm25_index()
 
 
     # =========================
@@ -324,7 +284,7 @@ def ask_question(
 
         rewritten_query,
 
-        top_k=1
+        top_k=3
     )
 
 
@@ -336,24 +296,20 @@ def ask_question(
 
         print("\nROUTER FAILED - FALLING BACK TO GLOBAL SEARCH")
 
-        selected_document = None
+        selected_documents = None
 
         document_score = 0
 
     else:
 
-        selected_document = matched_documents[0]["source"]
+        selected_documents = [
+
+            doc["source"]
+
+            for doc in matched_documents
+        ]
 
         document_score = matched_documents[0]["score"]
-
-
-    # =========================
-    # ROUTING CONFIDENCE CHECK
-    # =========================
-
-    if document_score < 0.20:
-
-        selected_document = None
 
 
     # =========================
@@ -362,10 +318,10 @@ def ask_question(
 
     if document_name is not None:
 
-        selected_document = document_name
+        selected_documents = [document_name]
 
-    print("\nSELECTED DOCUMENT:")
-    print(selected_document)
+    print("\nSELECTED DOCUMENTS:")
+    print(selected_documents)
 
     print("\nDOCUMENT MATCH SCORE:")
     print(document_score)
@@ -385,7 +341,7 @@ def ask_question(
 
         rewritten_query,
 
-        source_filter=selected_document,
+        source_filter=selected_documents,
 
         k=15
     )
@@ -474,7 +430,9 @@ def ask_question(
             chunk = item[0]
             score = item[1]
 
-            filtered_chunks.append((chunk, score))
+            if score >= MIN_RERANK_SCORE:
+
+                filtered_chunks.append((chunk, score))
 
 
     # =========================
@@ -629,12 +587,34 @@ def ask_question(
 
     generation_chunks = []
 
-    for chunk, score in filtered_chunks[:MAX_CONTEXT_CHUNKS]:
+
+    for expanded_chunk in expanded_chunks:
+
+        matching_score = 0.0
+
+
+        for original_chunk, original_score in filtered_chunks:
+
+            if (
+
+                expanded_chunk.page_content
+
+                ==
+
+                original_chunk.page_content
+            ):
+
+                matching_score = original_score
+
+                break
+
 
         generation_chunks.append(
 
-            (chunk, score)
+            (expanded_chunk, matching_score)
         )
+
+    
 
     # =========================
     # GENERATE ANSWER
@@ -648,6 +628,24 @@ def ask_question(
 
         conversation_context
     )
+
+    print("\nFINAL GENERATION CHUNKS:\n")
+
+    for chunk, score in generation_chunks:
+
+        print("SOURCE:")
+        print(chunk.metadata.get("source"))
+
+        print("\nPAGE:")
+        print(chunk.metadata.get("page"))
+
+        print("\nSCORE:")
+        print(score)
+
+        print("\nCONTENT:")
+        print(chunk.page_content[:500])
+
+        print("\n" + "=" * 80)
 
 
     # =========================
@@ -674,7 +672,7 @@ def ask_question(
 
         "rewritten_query": rewritten_query,
 
-        "document": selected_document,
+        "documents": selected_documents,
 
         "document_score": float(document_score)
         if document_score is not None
@@ -690,6 +688,12 @@ def ask_question(
 
         "sources": generation_result["sources"]
     }
+
+# =========================
+# INITIALIZE RESOURCES
+# =========================
+
+initialize_resources()
 
 if __name__ == "__main__":
 

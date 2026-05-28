@@ -244,7 +244,12 @@ def generate_answer(
 
     if not reranked_chunks:
 
-        return "The document does not contain enough information."
+        return {
+
+            "answer": "The document does not contain enough information.",
+
+            "sources": []
+        }
 
 
     # =========================
@@ -309,6 +314,15 @@ def generate_answer(
         reranked_chunks[:5]
     )
 
+    if len(unique_chunks) == 0:
+
+        return {
+
+            "answer": "The document does not contain enough information.",
+
+            "sources": []
+        }
+
 
     # =========================
     # CREATE GROUNDED CONTEXT
@@ -339,13 +353,25 @@ def generate_answer(
     # LLM GENERATION
     # =========================
 
-    response = llm.invoke(final_prompt)
+    try:
 
-    answer = (
-        response.content
-        .replace("\\n", "\n")
-        .strip()
-    )
+        response = llm.invoke(final_prompt)
+
+        answer = (
+
+            response.content
+            .replace("\\n", "\n")
+            .strip()
+        )
+
+    except Exception as e:
+
+        return {
+
+            "answer": f"LLM generation failed: {str(e)}",
+
+            "sources": []
+        }
 
 
     # =========================

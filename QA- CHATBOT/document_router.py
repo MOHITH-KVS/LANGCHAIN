@@ -12,12 +12,10 @@
 
 import os
 import pickle
+import numpy as np
 
 from sentence_transformers import SentenceTransformer
-
 from sklearn.metrics.pairwise import cosine_similarity
-
-import numpy as np
 
 
 # =========================
@@ -25,7 +23,6 @@ import numpy as np
 # =========================
 
 embedding_model = SentenceTransformer(
-
     "sentence-transformers/all-MiniLM-L6-v2"
 )
 
@@ -46,33 +43,158 @@ else:
 
 
 # =========================
-# DOCUMENT NAMES
+# DOCUMENT PROFILES
 # =========================
 
-document_names = list(document_registry.keys())
+document_profiles = []
 
 
-# =========================
-# DOCUMENT TEXTS
-# =========================
+for document_name, profile in document_registry.items():
 
-document_texts = list(document_registry.values())
+    summary = profile.get(
+        "summary",
+        ""
+    )
+
+    keywords = profile.get(
+        "keywords",
+        []
+    )
+
+    sample_chunks = profile.get(
+        "sample_chunks",
+        []
+    )
+
+    # =========================
+    # BUILD DOCUMENT PROFILE
+    # =========================
+
+    profile_text = " ".join([
+
+        summary,
+
+        " ".join(keywords),
+
+        " ".join(sample_chunks)
+    ])
+
+
+    document_profiles.append({
+
+        "source": document_name,
+
+        "profile_text": profile_text,
+
+        "keywords": keywords
+    })
 
 
 # =========================
 # CREATE DOCUMENT EMBEDDINGS
 # =========================
 
-if len(document_texts) > 0:
+if len(document_profiles) > 0:
+
+    profile_texts = [
+
+        item["profile_text"]
+
+        for item in document_profiles
+    ]
+
 
     document_embeddings = embedding_model.encode(
 
-        document_texts
+        profile_texts,
+
+        convert_to_numpy=True
     )
 
 else:
 
     document_embeddings = np.array([])
+
+
+# =========================
+# TOKENIZE TEXT
+# =========================
+
+def tokenize(text):
+
+    if text is None:
+
+        return set()
+
+    return set(
+
+        text.lower().split()
+    )
+
+
+# =========================
+# KEYWORD MATCH SCORE
+# =========================
+
+def keyword_match_score(
+
+    query,
+
+    document_keywords
+):
+
+    # =========================
+    # SAFE QUERY TOKENS
+    # =========================
+
+    query_tokens = tokenize(query)
+
+
+    # =========================
+    # SAFE KEYWORD TOKENS
+    # =========================
+
+    keyword_text = " ".join(
+
+        document_keywords
+    ) if document_keywords else ""
+
+
+    keyword_tokens = tokenize(
+
+        keyword_text
+    )
+
+
+    # =========================
+    # SAFETY CHECKS
+    # =========================
+
+    if len(query_tokens) == 0:
+
+        return 0.0
+
+
+    if len(keyword_tokens) == 0:
+
+        return 0.0
+
+
+    # =========================
+    # TOKEN OVERLAP
+    # =========================
+
+    overlap = query_tokens.intersection(
+
+        keyword_tokens
+    )
+
+
+    # =========================
+    # SAFE DIVISION
+    # =========================
+
+    return len(overlap) / max(len(query_tokens), 1)
 
 
 # =========================
@@ -91,7 +213,7 @@ def route_documents(
     # NO DOCUMENTS AVAILABLE
     # =========================
 
-    if len(document_names) == 0:
+    if len(document_profiles) == 0:
 
         return []
 
@@ -100,14 +222,19 @@ def route_documents(
     # QUERY EMBEDDING
     # =========================
 
-    query_embedding = embedding_model.encode([query])
+    query_embedding = embedding_model.encode(
+
+        [query],
+
+        convert_to_numpy=True
+    )
 
 
     # =========================
-    # SIMILARITY SEARCH
+    # SEMANTIC SIMILARITY
     # =========================
 
-    similarities = cosine_similarity(
+    semantic_scores = cosine_similarity(
 
         query_embedding,
 
@@ -115,31 +242,111 @@ def route_documents(
     )[0]
 
 
-    # =========================
-    # SORT DOCUMENTS
-    # =========================
-
-    ranked_indices = np.argsort(similarities)[::-1]
-
-
     matched_documents = []
 
 
     # =========================
-    # TOP DOCUMENTS
+    # HYBRID SCORING
     # =========================
 
-    for idx in ranked_indices[:top_k]:
+    for idx, profile in enumerate(document_profiles):
 
-        matched_documents.append(
+        semantic_score = float(
 
-            {
-
-                "source": document_names[idx],
-
-                "score": float(similarities[idx])
-            }
+            semantic_scores[idx]
         )
 
 
-    return matched_documents
+        keyword_score = keyword_match_score(
+
+            query,
+
+            profile["keywords"]
+        )
+
+
+        # =========================
+        # FINAL HYBRID SCORE
+        # =========================
+
+        hybrid_score = (
+
+            (0.7 * semantic_score)
+
+            +
+
+            (0.3 * keyword_score)
+        )
+
+
+        matched_documents.append({
+
+            "source": profile["source"],
+
+            "semantic_score": semantic_score,
+
+            "keyword_score": keyword_score,
+
+            "score": hybrid_score
+        })
+
+
+    # =========================
+    # SORT DOCUMENTS
+    # =========================
+
+    matched_documents = sorted(
+
+        matched_documents,
+
+        key=lambda x: x["score"],
+
+        reverse=True
+    )
+
+
+    # =========================
+    # FILTER LOW QUALITY MATCHES
+    # =========================
+
+    BEST_SCORE_THRESHOLD = 0.13
+
+
+    matched_documents = [
+
+        doc
+
+        for doc in matched_documents
+
+        if doc["score"] >= BEST_SCORE_THRESHOLD
+    ]
+
+
+    # =========================
+    # KEEP ONLY BEST DOCUMENT
+    # =========================
+
+    matched_documents = matched_documents[:top_k]
+
+
+    # =========================
+    # DEBUG LOGS
+    # =========================
+
+    print("\nDOCUMENT ROUTING RESULTS:\n")
+
+
+    for doc in matched_documents:
+
+        print(f"SOURCE: {doc['source']}")
+
+        print(f"SEMANTIC SCORE: {doc['semantic_score']}")
+
+        print(f"KEYWORD SCORE: {doc['keyword_score']}")
+
+        print(f"FINAL HYBRID SCORE: {doc['score']}")
+
+        print("=" * 50)
+
+
+    return matched_documents[:top_k]

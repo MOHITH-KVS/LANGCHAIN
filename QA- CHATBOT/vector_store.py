@@ -21,6 +21,7 @@ from langchain_core.documents import Document
 
 from embeddings import embedding_model
 
+import re
 
 # =========================
 # CREATE VECTOR STORE
@@ -125,11 +126,24 @@ def add_documents_to_vector_store(
 # CREATE BM25 INDEX
 # =========================
 
+def tokenize(text):
+
+    text = text.lower()
+
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+
+    return text.split()
+
+
+# =========================
+# CREATE BM25 INDEX
+# =========================
+
 def create_bm25_index(all_chunks):
 
     tokenized_chunks = [
 
-        chunk["content"].split()
+        tokenize(chunk["content"])
 
         for chunk in all_chunks
     ]
@@ -194,7 +208,7 @@ def hybrid_retrieve(
 
     source_filter=None,
 
-    k=5
+    k=10
 ):
 
 
@@ -218,6 +232,15 @@ def hybrid_retrieve(
 
     if source_filter:
 
+        # =========================
+        # HANDLE SINGLE STRING
+        # =========================
+
+        if isinstance(source_filter, str):
+
+            source_filter = [source_filter]
+
+
         filtered_chunks = [
 
             chunk
@@ -226,7 +249,7 @@ def hybrid_retrieve(
 
             if chunk["metadata"]["source"]
 
-            ==
+            in
 
             source_filter
         ]
@@ -256,48 +279,47 @@ def hybrid_retrieve(
     # FAISS RETRIEVAL WITH SCORES
     # =========================
 
-    semantic_results = vector_store.similarity_search_with_score(
+    all_semantic_results = vector_store.similarity_search_with_score(
 
         query,
 
-        k=k * 5
+        k=50
     )
 
-
-    semantic_docs = []
-
-
-    # =========================
-    # SEMANTIC SCORE FILTERING
-    # =========================
-
-    SEMANTIC_SCORE_THRESHOLD = 1.2
+    semantic_results = []
 
 
-    for doc, score in semantic_results:
+    for doc, score in all_semantic_results:
 
         source_match = True
-
         section_match = True
 
+
+        # =========================
+        # SOURCE FILTER
+        # =========================
 
         if source_filter:
 
             source_match = (
 
-                doc.metadata["source"]
+                doc.metadata.get("source")
 
-                ==
+                in
 
                 source_filter
             )
 
 
+        # =========================
+        # SECTION FILTER
+        # =========================
+
         if section_filter:
 
             section_match = (
 
-                doc.metadata["section"]
+                doc.metadata.get("section")
 
                 ==
 
@@ -306,7 +328,16 @@ def hybrid_retrieve(
 
 
         # =========================
-        # KEEP ONLY STRONG MATCHES
+        # IMPORTANT:
+        # LOWER FAISS DISTANCE = BETTER
+        # CONVERT TO SIMILARITY
+        # =========================
+
+        similarity_score = 1 / (1 + score)
+
+
+        # =========================
+        # KEEP FILTERED RESULTS
         # =========================
 
         if (
@@ -319,27 +350,60 @@ def hybrid_retrieve(
 
             and
 
-            score <= SEMANTIC_SCORE_THRESHOLD
+            similarity_score >= 0.35
         ):
 
-            semantic_docs.append(doc)
+            semantic_results.append(
 
-    
+                (doc, similarity_score)
+            )
+
+
+    # =========================
+    # SORT BY SIMILARITY
+    # =========================
+
+    semantic_results = sorted(
+
+        semantic_results,
+
+        key=lambda x: x[1],
+
+        reverse=True
+    )
+
+
+    # =========================
+    # EXTRACT FILTERED DOCUMENTS
+    # =========================
+
+    semantic_docs = [
+
+        doc
+
+        for doc, score in semantic_results
+    ]
+        
 
 
     # =========================
     # BM25 RETRIEVAL
     # =========================
 
-    bm25_query = query.split()
+    bm25_query = tokenize(query)
 
 
     filtered_texts = [
 
-        chunk["content"].split()
+        tokenize(chunk["content"])
 
         for chunk in filtered_chunks
     ]
+
+
+    if len(filtered_texts) == 0:
+
+        return []
 
 
     filtered_bm25 = BM25Okapi(filtered_texts)
