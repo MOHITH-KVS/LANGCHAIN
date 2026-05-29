@@ -71,11 +71,9 @@ for document_name, profile in document_registry.items():
     # =========================
 
     profile_text = " ".join([
-
+        document_name,
         summary,
-
         " ".join(keywords),
-
         " ".join(sample_chunks)
     ])
 
@@ -120,17 +118,15 @@ else:
 # TOKENIZE TEXT
 # =========================
 
+import re
+
 def tokenize(text):
-
     if text is None:
-
         return set()
 
-    return set(
+    text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text.lower())
 
-        text.lower().split()
-    )
-
+    return set(text.split())
 
 # =========================
 # KEYWORD MATCH SCORE

@@ -274,6 +274,16 @@ def hybrid_retrieve(
             section_filter
         ]
 
+    print("\nSOURCE FILTER:", source_filter)
+    print("FILTERED CHUNKS:", len(filtered_chunks))
+
+    resume_chunks = [
+        c for c in filtered_chunks
+        if c["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf"
+    ]
+
+    print("RESUME CHUNKS:", len(resume_chunks))
+
 
     # =========================
     # FAISS RETRIEVAL WITH SCORES
@@ -283,8 +293,16 @@ def hybrid_retrieve(
 
         query,
 
-        k=50
+        k=150
     )
+
+    print("\nSEMANTIC RESULTS")
+    for doc, score in all_semantic_results[:20]:
+        print(
+            doc.metadata.get("source"),
+            doc.metadata.get("chunk_id"),
+            score
+        )
 
     semantic_results = []
 
@@ -350,7 +368,7 @@ def hybrid_retrieve(
 
             and
 
-            similarity_score >= 0.35
+            similarity_score >= 0.10
         ):
 
             semantic_results.append(
@@ -381,7 +399,7 @@ def hybrid_retrieve(
 
         doc
 
-        for doc, score in semantic_results
+        for doc, score in semantic_results[:100]
     ]
         
 
@@ -425,7 +443,7 @@ def hybrid_retrieve(
     bm25_docs = []
 
 
-    for chunk, score in bm25_ranked[:k]:
+    for chunk, score in bm25_ranked[:25]:
 
         bm25_docs.append(
 
@@ -545,6 +563,29 @@ def hybrid_retrieve(
 
         for item in ranked_results
     ]
+
+
+
+    print("\nTOP HYBRID RESULTS")
+
+    for rank, (doc, score) in enumerate(combined_results[:15], start=1):
+
+        print("\nRANK:", rank)
+        print("CHUNK ID:", doc.metadata.get("chunk_id"))
+        print("SOURCE:", doc.metadata.get("source"))
+        print("RRF SCORE:", score)
+        print(doc.page_content[:200])
+
+        print("\nCHECKING FOR RESUME CHUNKS")
+
+    for doc, score in combined_results:
+
+        if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+
+            print("\nRESUME CHUNK FOUND")
+            print("CHUNK ID:", doc.metadata.get("chunk_id"))
+            print("RANK SCORE:", score)
+            print(doc.page_content[:200])
 
 
     return combined_results[:k]

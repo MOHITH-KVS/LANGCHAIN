@@ -511,9 +511,11 @@ def create_chunks(
             updated_metadata["section"] = section_name
 
 
+            enriched_chunk = f"{section_name.upper()}\n\n{chunk_text}"
+
             chunk_data = {
 
-                "content": chunk_text,
+                "content": enriched_chunk,
 
                 "metadata": updated_metadata
             }

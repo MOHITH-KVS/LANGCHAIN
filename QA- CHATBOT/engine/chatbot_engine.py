@@ -141,7 +141,6 @@ chat_history = []
 
 
 
-
 # =========================
 # MAIN CHATBOT FUNCTION
 # =========================
@@ -152,6 +151,7 @@ def ask_question(
 
     document_name=None
 ):
+    
     
     # =========================
     # LOAD CACHED RESOURCES
@@ -284,7 +284,7 @@ def ask_question(
 
         rewritten_query,
 
-        top_k=1
+        top_k=5
     )
 
 
@@ -304,9 +304,7 @@ def ask_question(
 
         selected_documents = [
 
-            doc["source"]
-
-            for doc in matched_documents
+            matched_documents[0]["source"]
         ]
 
         document_score = matched_documents[0]["score"]
@@ -320,12 +318,39 @@ def ask_question(
 
         selected_documents = [document_name]
 
-    print("\nSELECTED DOCUMENTS:")
+        with open("router_debug.txt", "w", encoding="utf-8") as f:
+            f.write("SELECTED DOCUMENTS DEBUG\n")
+            f.write(str(selected_documents))
+            f.write("\n")
+            f.write("DOCUMENT SCORE: ")
+            f.write(str(document_score))
+
+        return {
+            "answer": "DEBUG STOP"
+        }
+
+
+    print("\nDIRECT CERTIFICATION SEARCH TEST")
+
+    for chunk in all_chunks:
+
+        content = chunk["content"].lower()
+
+        if (
+            "generative ai" in content
+            or "cisco" in content
+            or "machine learning for finance" in content
+        ):
+            print("\nFOUND CHUNK")
+            print("CHUNK ID:", chunk["chunk_id"])
+            print("SOURCE:", chunk["metadata"]["source"])
+            print(content)
+
+
+    print("\n" + "="*60)
+    print("SELECTED DOCUMENTS:")
     print(selected_documents)
-
-    print("\nDOCUMENT MATCH SCORE:")
-    print(document_score)
-
+    print("="*60)
 
     # =========================
     # HYBRID RETRIEVAL
@@ -341,10 +366,21 @@ def ask_question(
 
         rewritten_query,
 
-        source_filter=selected_documents,
+        source_filter=None,
 
         k=15
     )
+
+
+    print("\nRETRIEVED CHUNKS")
+    print("=" * 80)
+
+    for doc, score in retrieved_chunks[:10]:
+        print("\nCHUNK ID:", doc.metadata.get("chunk_id"))
+        print("SOURCE:", doc.metadata.get("source"))
+        print("SCORE:", score)
+        print(doc.page_content[:300])
+            
 
     print("\nTOP RETRIEVED CHUNKS")
 

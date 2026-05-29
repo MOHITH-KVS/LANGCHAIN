@@ -89,127 +89,21 @@ def lexical_overlap_score(
 # =========================
 
 def rerank_chunks(
-
     query,
-
     retrieved_chunks
 ):
 
-
-    # =========================
-    # EMPTY CHECK
-    # =========================
-
-    if len(retrieved_chunks) == 0:
-
-        return []
-
-
-    # =========================
-    # PREPARE INPUTS
-    # =========================
-
-    pairs = []
-
-    documents = []
-
+    results = []
 
     for item in retrieved_chunks:
 
-
-        # =========================
-        # HANDLE TUPLE FORMAT
-        # =========================
-
         if isinstance(item, tuple):
-
-            chunk = item[0]
-
+            doc = item[0]
+            score = item[1]
         else:
+            doc = item
+            score = 0
 
-            chunk = item
+        results.append((doc, score))
 
-
-        pairs.append(
-
-            [query, chunk.page_content]
-        )
-
-        documents.append(chunk)
-
-
-    # =========================
-    # CROSS-ENCODER SCORING
-    # =========================
-
-    semantic_scores = reranker_model.predict(pairs)
-
-
-    reranked_results = []
-
-
-    # =========================
-    # HYBRID SCORING
-    # =========================
-
-    for doc, semantic_score in zip(
-
-        documents,
-
-        semantic_scores
-    ):
-
-
-        lexical_score = lexical_overlap_score(
-
-            query,
-
-            doc.page_content
-        )
-
-
-        # =========================
-        # NORMALIZED HYBRID SCORE
-        # =========================
-
-        normalized_semantic = float(semantic_score)
-
-        normalized_lexical = lexical_score / 10
-
-
-        final_score = (
-
-            normalized_semantic * 0.85
-
-            +
-
-            normalized_lexical * 0.15
-        )
-
-
-        reranked_results.append(
-
-            (
-
-                doc,
-
-                final_score
-            )
-        )
-
-
-    # =========================
-    # FINAL SORTING
-    # =========================
-
-    reranked_results = sorted(
-
-        reranked_results,
-
-        key=lambda x: x[1],
-
-        reverse=True
-    )
-
-
-    return reranked_results
+    return results
