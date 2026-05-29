@@ -63,7 +63,7 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 
 MIN_RELEVANCE_SCORE = 0.20
 
-MAX_CONTEXT_CHUNKS = 5
+MAX_CONTEXT_CHUNKS = 10
 
 RELATIVE_SCORE_THRESHOLD = 0.50
 
@@ -284,7 +284,7 @@ def ask_question(
 
         rewritten_query,
 
-        top_k=3
+        top_k=1
     )
 
 
@@ -345,6 +345,47 @@ def ask_question(
 
         k=15
     )
+
+    print("\nTOP RETRIEVED CHUNKS")
+
+    for idx, (chunk, score) in enumerate(retrieved_chunks):
+
+        chunk_id = chunk.metadata.get("chunk_id", "UNKNOWN")
+
+        print(
+            f"\nRANK {idx+1}"
+        )
+
+        print(
+            "CHUNK ID:",
+            chunk_id
+        )
+
+        print(
+            "SOURCE:",
+            chunk.metadata.get("source")
+        )
+
+        print(
+            "SECTION:",
+            chunk.metadata.get("section")
+        )
+
+        print(
+            chunk.page_content[:200]
+        )
+
+        print("=" * 50)
+
+    for idx, (chunk, score) in enumerate(retrieved_chunks):
+
+        print(f"\nRANK {idx+1}")
+
+        print(chunk.metadata)
+
+        print(chunk.page_content[:200])
+
+        print("=" * 50)
 
     print("\nHYBRID RETRIEVAL RESULTS:\n")
 

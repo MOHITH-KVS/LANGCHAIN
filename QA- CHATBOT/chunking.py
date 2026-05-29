@@ -20,7 +20,7 @@ import re
 
 MAX_CHUNK_LENGTH = 700
 
-MIN_CHUNK_LENGTH = 180
+MIN_CHUNK_LENGTH = 30
 
 CHUNK_OVERLAP = 120
 
@@ -488,7 +488,14 @@ def create_chunks(
             chunk_text = chunk_text.strip()
 
 
-            if len(chunk_text.strip()) < MIN_CHUNK_LENGTH:
+            if len(chunk_text.strip()) < 20:
+
+                print("\nSHORT CHUNK REMOVED")
+                print("SECTION:", section_name)
+                print("LENGTH:", len(chunk_text))
+                print(chunk_text)
+                print("=" * 50)
+
 
                 continue
 

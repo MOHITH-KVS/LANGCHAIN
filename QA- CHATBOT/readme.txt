@@ -3,6 +3,16 @@ cd "QA- CHATBOT"
 
 uvicorn api.main:app --reload
 
+
+
+1. What certifications are mentioned?
+2. What internships are mentioned?
+3. What is GVP-MAAA?
+4. What are the objectives?
+5. What agents are used?
+
+
+
 | File Changed           | Re-run What?         |
 | ---------------------- | -------------------- |
 | generation.py          | chatbot.py           |

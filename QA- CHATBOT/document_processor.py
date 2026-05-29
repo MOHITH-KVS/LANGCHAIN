@@ -138,8 +138,11 @@ def detect_section(text):
         ],
 
         "certifications": [
-
-            "certifications"
+            "certifications",
+            "certificates",
+            "certificate",
+            "workshops",
+            "courses"
         ],
 
         "achievements": [
@@ -356,7 +359,12 @@ def split_into_sections(text):
                 })
 
 
-            current_section = clean_line.lower().replace(":", "").strip()
+            detected_section = detect_section(clean_line)
+
+            if detected_section != "general":
+                current_section = detected_section
+            else:
+                current_section = clean_line.lower().replace(":", "").strip()
 
             current_content = []
 
@@ -378,6 +386,21 @@ def split_into_sections(text):
 
             "content": "\n".join(current_content)
         })
+
+    print("\n========== SECTION DEBUG ==========")
+
+    for sec in sections:
+        print("SECTION FOUND:", sec["section"])
+
+        preview = (
+            sec["content"][:150]
+            .encode("ascii", errors="ignore")
+            .decode()
+        )
+
+        print(preview)
+
+    print("===================================")
 
 
     return sections

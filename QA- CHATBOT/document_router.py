@@ -137,64 +137,32 @@ def tokenize(text):
 # =========================
 
 def keyword_match_score(
-
     query,
-
-    document_keywords
+    document_keywords,
+    profile_text=""
 ):
-
-    # =========================
-    # SAFE QUERY TOKENS
-    # =========================
-
     query_tokens = tokenize(query)
 
-
-    # =========================
-    # SAFE KEYWORD TOKENS
-    # =========================
-
-    keyword_text = " ".join(
-
-        document_keywords
-    ) if document_keywords else ""
-
-
     keyword_tokens = tokenize(
-
-        keyword_text
+        " ".join(document_keywords)
     )
 
+    profile_tokens = tokenize(
+        profile_text
+    )
 
-    # =========================
-    # SAFETY CHECKS
-    # =========================
+    all_tokens = keyword_tokens.union(
+        profile_tokens
+    )
 
     if len(query_tokens) == 0:
-
         return 0.0
-
-
-    if len(keyword_tokens) == 0:
-
-        return 0.0
-
-
-    # =========================
-    # TOKEN OVERLAP
-    # =========================
 
     overlap = query_tokens.intersection(
-
-        keyword_tokens
+        all_tokens
     )
 
-
-    # =========================
-    # SAFE DIVISION
-    # =========================
-
-    return len(overlap) / max(len(query_tokens), 1)
+    return len(overlap) / len(query_tokens)
 
 
 # =========================
@@ -205,7 +173,7 @@ def route_documents(
 
     query,
 
-    top_k=1
+    top_k=10
 ):
 
 
@@ -258,11 +226,15 @@ def route_documents(
 
 
         keyword_score = keyword_match_score(
-
             query,
-
-            profile["keywords"]
+            profile["keywords"],
+            profile["profile_text"]
         )
+
+        print("\nDEBUG ROUTER")
+        print("QUERY:", query)
+        print("DOCUMENT:", profile["source"])
+        print("KEYWORD SCORE:", keyword_score)
 
 
         # =========================
@@ -304,12 +276,18 @@ def route_documents(
         reverse=True
     )
 
+    print("\nAFTER SORTING")
+    print("TOTAL DOCUMENTS:", len(matched_documents))
+
+    for doc in matched_documents:
+        print(doc["source"], doc["score"])
+
 
     # =========================
     # FILTER LOW QUALITY MATCHES
     # =========================
 
-    BEST_SCORE_THRESHOLD = 0.08
+    BEST_SCORE_THRESHOLD = 0.0
 
 
     matched_documents = [
@@ -326,7 +304,11 @@ def route_documents(
     # KEEP ONLY BEST DOCUMENT
     # =========================
 
-    matched_documents = matched_documents[:1]
+    matched_documents = matched_documents[:top_k]
+    print("\nALL DOCUMENT SCORES\n")
+
+    for doc in matched_documents:
+        print(doc)
 
 
     # =========================
