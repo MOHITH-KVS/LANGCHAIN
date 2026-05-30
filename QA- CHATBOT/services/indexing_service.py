@@ -14,6 +14,8 @@
 
 import os
 
+import re
+
 import pickle
 
 from document_processor import (
@@ -313,6 +315,18 @@ def process_pdf_document(
 
         cleaned_text = clean_text(raw_text)
 
+        # Skip pages that are mostly code
+        code_line_count = sum(
+            1 for line in cleaned_text.split("\n")
+            if re.search(r"(def |class |import |return |const |export |function |\btablename\b|Column\(|BaseModel)", line)
+        )
+        total_lines = max(len(cleaned_text.split("\n")), 1)
+        code_ratio = code_line_count / total_lines
+
+        if code_ratio > 0.3:
+            print(f"\nSKIPPING CODE PAGE: {page_num+1} | code ratio: {round(code_ratio, 2)}")
+            continue
+
         sections = split_into_sections(cleaned_text)
 
 
@@ -341,7 +355,7 @@ def process_pdf_document(
 
             chunks = create_chunks(
 
-                section_content,
+                section_name.upper() + "\n\n" + section_content,
 
                 metadata
             )

@@ -59,7 +59,7 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 # RETRIEVAL SETTINGS
 # =========================
 
-MIN_RELEVANCE_SCORE = 2.0
+MIN_RELEVANCE_SCORE = -2.0
 
 MAX_CONTEXT_CHUNKS = 5
 
@@ -273,7 +273,7 @@ while True:
     # ROUTING CONFIDENCE CHECK
     # =========================
 
-    if document_score < 0.30:
+    if document_score < 0.20:
 
         selected_document = None
 
@@ -292,6 +292,8 @@ while True:
     # HYBRID RETRIEVAL
     # =========================
 
+    combined_query = question + " " + rewritten_query
+
     retrieved_chunks = hybrid_retrieve(
 
         vector_store,
@@ -300,7 +302,7 @@ while True:
 
         all_chunks,
 
-        rewritten_query,
+        combined_query,
 
         source_filter=selected_document
     )

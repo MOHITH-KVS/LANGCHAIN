@@ -153,44 +153,6 @@ def create_bm25_index(all_chunks):
     return bm25
 
 
-# =========================
-# DETECT SECTION FILTER
-# =========================
-
-def detect_section_filter(query):
-
-    query_lower = query.lower()
-
-    section_keywords = [
-
-        "abstract",
-
-        "introduction",
-
-        "methodology",
-
-        "architecture",
-
-        "conclusion",
-
-        "technologies",
-
-        "implementation",
-
-        "results",
-
-        "objectives"
-    ]
-
-
-    for section in section_keywords:
-
-        if section in query_lower:
-
-            return section
-
-    return None
-
 
 # =========================
 # HYBRID RETRIEVAL
@@ -212,11 +174,6 @@ def hybrid_retrieve(
 ):
 
 
-    # =========================
-    # DETECT SECTION FILTER
-    # =========================
-
-    section_filter = detect_section_filter(query)
 
 
     # =========================
@@ -224,6 +181,17 @@ def hybrid_retrieve(
     # =========================
 
     filtered_chunks = all_chunks
+
+    print("\nALL RESUME CHUNKS")
+
+    for chunk in filtered_chunks:
+
+        if chunk["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf":
+
+            print(
+                chunk["chunk_id"],
+                chunk["metadata"]["source"]
+            )
 
 
     # =========================
@@ -255,24 +223,6 @@ def hybrid_retrieve(
         ]
 
 
-    # =========================
-    # SECTION FILTER
-    # =========================
-
-    if section_filter:
-
-        filtered_chunks = [
-
-            chunk
-
-            for chunk in filtered_chunks
-
-            if chunk["metadata"]["section"]
-
-            ==
-
-            section_filter
-        ]
 
     print("\nSOURCE FILTER:", source_filter)
     print("FILTERED CHUNKS:", len(filtered_chunks))
@@ -296,10 +246,29 @@ def hybrid_retrieve(
         k=150
     )
 
+
+    print("\nLOOKING FOR CHUNK 570")
+
+    for doc, score in all_semantic_results:
+
+        if doc.metadata.get("chunk_id") == 570:
+
+            print("\nFOUND CHUNK 570")
+            print("SCORE:", score)
+            print(doc.page_content)
+
     print("\nSEMANTIC RESULTS")
-    for doc, score in all_semantic_results[:20]:
+    for doc, score in all_semantic_results:
         print(
             doc.metadata.get("source"),
+            doc.metadata.get("chunk_id"),
+            score
+        )
+
+    if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+
+        print(
+            "RESUME",
             doc.metadata.get("chunk_id"),
             score
         )
@@ -310,7 +279,6 @@ def hybrid_retrieve(
     for doc, score in all_semantic_results:
 
         source_match = True
-        section_match = True
 
 
         # =========================
@@ -329,20 +297,6 @@ def hybrid_retrieve(
             )
 
 
-        # =========================
-        # SECTION FILTER
-        # =========================
-
-        if section_filter:
-
-            section_match = (
-
-                doc.metadata.get("section")
-
-                ==
-
-                section_filter
-            )
 
 
         # =========================
@@ -361,10 +315,6 @@ def hybrid_retrieve(
         if (
 
             source_match
-
-            and
-
-            section_match
 
             and
 
@@ -389,6 +339,17 @@ def hybrid_retrieve(
 
         reverse=True
     )
+
+    print("\nRESUME CHUNKS IN SEMANTIC RESULTS")
+
+    for doc, score in semantic_results:
+
+        if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+
+            print(
+                doc.metadata.get("chunk_id"),
+                score
+            )
 
 
     # =========================
@@ -460,6 +421,17 @@ def hybrid_retrieve(
             )
         )
 
+
+    print("\nRESUME CHUNKS IN BM25 RESULTS")
+
+    for chunk, score in bm25_ranked[:50]:
+
+        if chunk["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf":
+
+            print(
+                chunk["chunk_id"],
+                score
+            )
 
     # =========================
     # MERGE RESULTS
@@ -586,6 +558,23 @@ def hybrid_retrieve(
             print("CHUNK ID:", doc.metadata.get("chunk_id"))
             print("RANK SCORE:", score)
             print(doc.page_content[:200])
+
+
+    print("\n" + "="*80)
+    print("ALL RESUME CHUNKS RETURNED BY RETRIEVAL")
+    print("="*80)
+
+    for doc, score in combined_results:
+
+        if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+
+            print("\nCHUNK ID:", doc.metadata.get("chunk_id"))
+            print("SCORE:", score)
+
+            print("CONTENT:")
+            print(doc.page_content[:300])
+
+        print("-"*80)
 
 
     return combined_results[:k]

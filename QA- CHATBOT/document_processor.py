@@ -325,20 +325,24 @@ def split_into_sections(text):
         # INDUSTRIAL HEADING DETECTION
         # =====================================================
 
+        # Reject code lines before heading detection
+        code_signals = (
+            re.search(r"[=\[\]{}()<>]", clean_line) is not None
+            or re.search(r"(def |class |import |return |const |export |function )", clean_line) is not None
+            or re.search(r"https?://", clean_line) is not None
+            or re.search(r"[a-z][A-Z]", clean_line) is not None
+            or "_" in clean_line
+            or clean_line.startswith("@")
+        )
+
         is_heading = (
-
-            word_count <= 6
-
+            not code_signals
+            and word_count <= 6
             and not starts_with_bullet
-
             and not has_terminal_punctuation
-
             and not contains_many_symbols
-
             and not contains_numbers
-
             and len(clean_line) < 50
-
             and title_case_ratio > 0.6
         )
 

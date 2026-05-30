@@ -304,10 +304,14 @@ def ask_question(
 
         selected_documents = [
 
-            matched_documents[0]["source"]
-        ]
+        matched_documents[0]["source"]
+    ]
 
-        document_score = matched_documents[0]["score"]
+    document_score = matched_documents[0]["score"]
+
+    if document_score < 0.20:
+
+        selected_documents = None
 
 
     # =========================
@@ -317,17 +321,6 @@ def ask_question(
     if document_name is not None:
 
         selected_documents = [document_name]
-
-        with open("router_debug.txt", "w", encoding="utf-8") as f:
-            f.write("SELECTED DOCUMENTS DEBUG\n")
-            f.write(str(selected_documents))
-            f.write("\n")
-            f.write("DOCUMENT SCORE: ")
-            f.write(str(document_score))
-
-        return {
-            "answer": "DEBUG STOP"
-        }
 
 
     print("\nDIRECT CERTIFICATION SEARCH TEST")
@@ -356,6 +349,8 @@ def ask_question(
     # HYBRID RETRIEVAL
     # =========================
 
+    combined_query = question + " " + rewritten_query
+
     retrieved_chunks = hybrid_retrieve(
 
         vector_store,
@@ -364,9 +359,9 @@ def ask_question(
 
         all_chunks,
 
-        rewritten_query,
+        combined_query,
 
-        source_filter=None,
+        source_filter=selected_documents,
 
         k=15
     )

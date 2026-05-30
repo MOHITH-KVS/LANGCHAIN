@@ -40,6 +40,22 @@ def detect_heading_score(line):
         return 0
 
 
+    # REJECT CODE LINES
+    code_patterns = [
+        r"^\s*(def |class |import |from |return )",
+        r"=\s*(Column|List|Optional|None|True|False|\[)",
+        r":\s*(str|int|float|bool|list|dict|Optional|List)",
+        r"https?://",
+        r"nullable\s*=",
+        r"primary_key\s*=",
+        r"[a-z]_[a-z]",
+    ]
+    for pattern in code_patterns:
+        if re.search(pattern, line):
+            return -99
+
+    
+
     words = line.split()
 
     word_count = len(words)

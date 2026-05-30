@@ -93,17 +93,35 @@ def rerank_chunks(
     retrieved_chunks
 ):
 
-    results = []
+    if not retrieved_chunks:
+        return []
+
+    docs = []
 
     for item in retrieved_chunks:
-
         if isinstance(item, tuple):
             doc = item[0]
-            score = item[1]
         else:
             doc = item
-            score = 0
+        docs.append(doc)
 
-        results.append((doc, score))
+    pairs = [
+        [query, doc.page_content]
+        for doc in docs
+    ]
 
-    return results
+    scores = reranker_model.predict(pairs)
+
+    scored_results = list(zip(docs, scores))
+
+    scored_results = sorted(
+        scored_results,
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    print("\nRERANKER SCORES:")
+    for doc, score in scored_results[:5]:
+        print(round(float(score), 4), "|", doc.metadata.get("section", ""))
+
+    return scored_results

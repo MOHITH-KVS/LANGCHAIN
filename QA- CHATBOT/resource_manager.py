@@ -9,7 +9,7 @@ from langchain_community.vectorstores import FAISS
 
 from embeddings import embedding_model
 
-from engine.bm25_retriever import create_bm25_index
+from vector_store import create_bm25_index
 
 
 # =========================

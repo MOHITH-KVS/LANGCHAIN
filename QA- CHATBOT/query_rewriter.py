@@ -80,11 +80,6 @@ def rewrite_query(
     # Convert short section queries
     # into retrieval-friendly queries
 
-    for section in document_sections:
-
-        if section in question_lower:
-
-            return f"Explain the {section} section of the document"
 
 
     # =========================
@@ -92,24 +87,18 @@ def rewrite_query(
     # =========================
 
     prompt = f"""
+You are a search query optimizer for a document retrieval system.
 
-You are a query rewriting system for PDF document retrieval.
+Your ONLY job is to rewrite the user's question into a better search query.
 
-Your ONLY job is to improve retrieval quality for the uploaded document.
-
-IMPORTANT RULES:
-
-1. NEVER change the meaning of the user's question.
-2. NEVER convert document section names into general concepts.
-3. Preserve important keywords exactly.
-4. Preserve names, headings, and technical terms.
-5. Rewrite ONLY if the question is vague.
-6. Keep rewritten query concise.
-7. Keep rewritten query closely related to the document.
-8. Do NOT answer the question.
-9. Output ONLY the rewritten query.
-10. If the user mentions a document section like abstract, conclusion, methodology, introduction, architecture, etc., preserve the exact section name clearly in the rewritten query.
-11. Expand short queries into retrieval-friendly document-oriented questions.
+RULES:
+1. Keep ALL important keywords from the original question
+2. Do NOT remove technical terms, names, or section names
+3. Do NOT make the query generic - keep it specific
+4. If the user asks about a section like abstract, introduction, methodology - keep that word AND expand with related terms
+5. Do NOT answer the question
+6. Return ONLY the rewritten query, nothing else
+7. Keep it under 20 words
 
 PREVIOUS CONVERSATION:
 {conversation_context}
@@ -118,7 +107,6 @@ USER QUESTION:
 {question}
 
 REWRITTEN QUERY:
-
 """
 
 
@@ -130,43 +118,6 @@ REWRITTEN QUERY:
 
     rewritten_query = response.content.strip()
 
-
-    # =========================
-    # SAFETY CHECK
-    # =========================
-
-    important_terms = [
-
-        "gvp-maaa",
-
-        "abstract",
-
-        "methodology",
-
-        "architecture",
-
-        "conclusion",
-
-        "technologies"
-    ]
-
-    original_lower = question.lower()
-
-    rewritten_lower = rewritten_query.lower()
-
-
-    # =========================
-    # FALLBACK SAFETY
-    # =========================
-
-    # If important terms disappear,
-    # fallback to original question.
-
-    for term in important_terms:
-
-        if term in original_lower and term not in rewritten_lower:
-
-            return question
 
 
     # =========================
