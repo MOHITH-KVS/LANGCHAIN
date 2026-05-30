@@ -70,6 +70,7 @@ def rewrite_query(
     conversation_context
 ):
 
+    print("\nQUERY REWRITER EXECUTED")
     question_lower = question.lower()
 
 
@@ -77,8 +78,19 @@ def rewrite_query(
     # SECTION-AWARE REWRITING
     # =========================
 
-    # Convert short section queries
-    # into retrieval-friendly queries
+    for section in document_sections:
+
+        if section in question_lower:
+
+            question = (
+
+                f"{question} "
+                f"{section} section "
+                f"{section} details "
+                f"{section} information"
+            )
+
+            break
 
 
 
@@ -117,6 +129,15 @@ REWRITTEN QUERY:
     response = llm.invoke(prompt)
 
     rewritten_query = response.content.strip()
+
+    print("\n" + "=" * 60)
+    print("ORIGINAL QUESTION:")
+    print(question)
+
+    print("\nREWRITTEN QUERY:")
+    print(rewritten_query)
+
+    print("=" * 60)
 
 
 

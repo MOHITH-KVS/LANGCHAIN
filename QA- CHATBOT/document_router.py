@@ -283,7 +283,7 @@ def route_documents(
     # FILTER LOW QUALITY MATCHES
     # =========================
 
-    BEST_SCORE_THRESHOLD = 0.0
+    BEST_SCORE_THRESHOLD = 0.25
 
 
     matched_documents = [

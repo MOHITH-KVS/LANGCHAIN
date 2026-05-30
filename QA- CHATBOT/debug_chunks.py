@@ -1,37 +1,122 @@
 import pickle
 
+# =========================
+# LOAD CHUNKS
+# =========================
+
 with open("chunks.pkl", "rb") as f:
+
     chunks = pickle.load(f)
 
-print("TOTAL CHUNKS:", len(chunks))
+print("\nTOTAL CHUNKS:", len(chunks))
 
-found = False
+
+# =========================
+# PDF TO INSPECT
+# =========================
+
+target_pdf = "4954295325.pdf"
+
+
+# =========================
+# KEYWORDS TO SEARCH
+# =========================
+
+keywords = [
+
+    "application",
+    "application no",
+    "application number",
+    "4954295325",
+    "driving",
+    "test",
+    "address",
+    "rta",
+    "visakhapatnam"
+]
+
+
+# =========================
+# SEARCH KEYWORDS
+# =========================
+
+print("\n")
+print("=" * 100)
+print("KEYWORD SEARCH RESULTS")
+print("=" * 100)
+
+found_count = 0
 
 for chunk in chunks:
 
-    content = chunk.get("content", "").lower()
+    text = chunk["content"].lower()
 
-    if (
-        "cisco" in content
-        or "generative ai" in content
-        or "machine learning for finance" in content
-        or "data analytics essentials" in content
-    ):
+    for keyword in keywords:
 
-        found = True
+        if keyword in text:
 
-        print("\n" + "=" * 80)
+            found_count += 1
 
-        print("CHUNK ID:")
-        print(chunk.get("chunk_id"))
+            print("\n")
+            print("=" * 100)
 
-        print("\nMETADATA:")
-        print(chunk.get("metadata"))
+            print(f"FOUND KEYWORD: {keyword}")
+
+            print("\nMETADATA:")
+
+            print(chunk["metadata"])
+
+            print("\nCONTENT:")
+
+            print(chunk["content"][:1500])
+
+            print("=" * 100)
+
+            break
+
+
+# =========================
+# INSPECT SPECIFIC PDF
+# =========================
+
+print("\n")
+print("=" * 100)
+print(f"ALL CHUNKS FROM: {target_pdf}")
+print("=" * 100)
+
+pdf_chunk_count = 0
+
+for chunk in chunks:
+
+    source = chunk["metadata"].get("source", "")
+
+    if target_pdf.lower() in source.lower():
+
+        pdf_chunk_count += 1
+
+        print("\n")
+        print("=" * 100)
+
+        print("METADATA:")
+
+        print(chunk["metadata"])
 
         print("\nCONTENT:")
-        print(chunk.get("content"))
 
-        print("\n" + "=" * 80)
+        print(chunk["content"][:3000])
 
-if not found:
-    print("\nNO CERTIFICATION CHUNK FOUND")
+        print("=" * 100)
+
+
+# =========================
+# SUMMARY
+# =========================
+
+print("\n")
+print("=" * 100)
+
+print("TOTAL KEYWORD MATCHES:", found_count)
+
+print("TOTAL CHUNKS FROM PDF:", pdf_chunk_count)
+
+print("=" * 100)

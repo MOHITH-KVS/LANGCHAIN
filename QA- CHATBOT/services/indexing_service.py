@@ -315,6 +315,21 @@ def process_pdf_document(
 
         cleaned_text = clean_text(raw_text)
 
+        # =========================
+        # EXTRACTION QUALITY CHECK
+        # =========================
+
+        word_count = len(cleaned_text.split())
+
+        if word_count < 30:
+
+            print(
+                f"\nWARNING: Poor extraction detected"
+                f"\nPDF: {pdf_file}"
+                f"\nPage: {page_num + 1}"
+                f"\nWords Extracted: {word_count}"
+            )
+
         # Skip pages that are mostly code
         code_line_count = sum(
             1 for line in cleaned_text.split("\n")

@@ -287,6 +287,9 @@ def ask_question(
         top_k=5
     )
 
+    print("\nMATCHED DOCUMENTS")
+    print(matched_documents)
+
 
     # =========================
     # ROUTER FALLBACK
@@ -303,15 +306,14 @@ def ask_question(
     else:
 
         selected_documents = [
+            matched_documents[0]["source"]
+        ]
 
-        matched_documents[0]["source"]
-    ]
+        document_score = matched_documents[0]["score"]
 
-    document_score = matched_documents[0]["score"]
+        if document_score < 0.20:
 
-    if document_score < 0.20:
-
-        selected_documents = None
+            selected_documents = None
 
 
     # =========================
@@ -323,21 +325,6 @@ def ask_question(
         selected_documents = [document_name]
 
 
-    print("\nDIRECT CERTIFICATION SEARCH TEST")
-
-    for chunk in all_chunks:
-
-        content = chunk["content"].lower()
-
-        if (
-            "generative ai" in content
-            or "cisco" in content
-            or "machine learning for finance" in content
-        ):
-            print("\nFOUND CHUNK")
-            print("CHUNK ID:", chunk["chunk_id"])
-            print("SOURCE:", chunk["metadata"]["source"])
-            print(content)
 
 
     print("\n" + "="*60)
@@ -367,14 +354,6 @@ def ask_question(
     )
 
 
-    print("\nRETRIEVED CHUNKS")
-    print("=" * 80)
-
-    for doc, score in retrieved_chunks[:10]:
-        print("\nCHUNK ID:", doc.metadata.get("chunk_id"))
-        print("SOURCE:", doc.metadata.get("source"))
-        print("SCORE:", score)
-        print(doc.page_content[:300])
             
 
     print("\nTOP RETRIEVED CHUNKS")
@@ -408,15 +387,6 @@ def ask_question(
 
         print("=" * 50)
 
-    for idx, (chunk, score) in enumerate(retrieved_chunks):
-
-        print(f"\nRANK {idx+1}")
-
-        print(chunk.metadata)
-
-        print(chunk.page_content[:200])
-
-        print("=" * 50)
 
     print("\nHYBRID RETRIEVAL RESULTS:\n")
 
@@ -567,7 +537,8 @@ def ask_question(
 
         return {
 
-            "answer": "No relevant information found."
+            "answer": "No relevant information found.",
+            "sources": []
         }
 
 

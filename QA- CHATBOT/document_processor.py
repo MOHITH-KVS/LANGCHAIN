@@ -26,6 +26,20 @@ def load_pdf(file_path):
 
     documents = loader.load()
 
+    print("\n" + "=" * 80)
+    print("PDF EXTRACTION DEBUG")
+    print("=" * 80)
+
+    for i, doc in enumerate(documents):
+
+        print(f"\nPAGE {i + 1}")
+
+        print("-" * 50)
+
+        print(doc.page_content[:2000])
+
+    print("\n" + "=" * 80)
+
     return documents
 
 

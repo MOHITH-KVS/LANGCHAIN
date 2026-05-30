@@ -311,7 +311,7 @@ def generate_answer(
 
     unique_chunks = remove_duplicate_chunks(
 
-        reranked_chunks[:5]
+        reranked_chunks[:10]
     )
 
     if len(unique_chunks) == 0:
@@ -380,7 +380,7 @@ def generate_answer(
 
     sources = []
 
-    for item in reranked_chunks[:5]:
+    for item in reranked_chunks[:10]:
 
         if isinstance(item, tuple):
 
