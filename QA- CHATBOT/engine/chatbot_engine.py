@@ -306,7 +306,10 @@ def ask_question(
     else:
 
         selected_documents = [
-            matched_documents[0]["source"]
+
+            doc["source"]
+
+            for doc in matched_documents
         ]
 
         document_score = matched_documents[0]["score"]

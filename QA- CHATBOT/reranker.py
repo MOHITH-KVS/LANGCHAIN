@@ -20,6 +20,12 @@ from sentence_transformers import CrossEncoder
 
 import re
 
+from config import (
+    RERANKER_MODEL,
+    LEXICAL_BOOST_WEIGHT
+)
+
+from config import DEBUG
 
 # =========================
 # LOAD CROSS-ENCODER MODEL
@@ -27,7 +33,7 @@ import re
 
 reranker_model = CrossEncoder(
 
-    "BAAI/bge-reranker-base"
+    RERANKER_MODEL
 )
 
 
@@ -192,7 +198,7 @@ def rerank_chunks(
 
             +
 
-            (0.15 * lexical_score)
+            (LEXICAL_BOOST_WEIGHT * lexical_score)
         )
 
         scored_results.append(
@@ -224,36 +230,28 @@ def rerank_chunks(
     # DEBUG OUTPUT
     # =========================
 
-    print("\n")
+    if DEBUG:
 
-    print("=" * 80)
+        print("\n")
 
-    print("RERANKER SCORES")
+        print("=" * 80)
 
-    print("=" * 80)
+        print("RERANKER SCORES")
 
-    for doc, score in scored_results[:10]:
+        print("=" * 80)
 
-        print(
+        for doc, score in scored_results[:10]:
 
-            round(
-
-                float(score),
-
-                4
-            ),
-
-            "|",
-
-            doc.metadata.get(
-
-                "section",
-
-                "unknown"
+            print(
+                round(float(score), 4),
+                "|",
+                doc.metadata.get(
+                    "section",
+                    "unknown"
+                )
             )
-        )
 
-    print("=" * 80)
+        print("=" * 80)
 
 
     return scored_results

@@ -23,6 +23,12 @@ from embeddings import embedding_model
 
 import re
 
+from config import (
+    TOP_K_RETRIEVAL,
+    SIMILARITY_THRESHOLD,
+    DEBUG
+)
+
 # =========================
 # CREATE VECTOR STORE
 # =========================
@@ -170,10 +176,8 @@ def hybrid_retrieve(
 
     source_filter=None,
 
-    k=10
+    k=TOP_K_RETRIEVAL
 ):
-
-
 
 
     # =========================
@@ -182,16 +186,18 @@ def hybrid_retrieve(
 
     filtered_chunks = all_chunks
 
-    print("\nALL RESUME CHUNKS")
+    if DEBUG:
 
-    for chunk in filtered_chunks:
+        print("\nALL RESUME CHUNKS")
 
-        if chunk["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf":
+        for chunk in filtered_chunks:
 
-            print(
-                chunk["chunk_id"],
-                chunk["metadata"]["source"]
-            )
+            if chunk["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf":
+
+                print(
+                    chunk["chunk_id"],
+                    chunk["metadata"]["source"]
+                )
 
 
     # =========================
@@ -224,15 +230,17 @@ def hybrid_retrieve(
 
 
 
-    print("\nSOURCE FILTER:", source_filter)
-    print("FILTERED CHUNKS:", len(filtered_chunks))
-
     resume_chunks = [
         c for c in filtered_chunks
         if c["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf"
     ]
 
-    print("RESUME CHUNKS:", len(resume_chunks))
+    if DEBUG:
+
+        print("\nSOURCE FILTER:", source_filter)
+        print("FILTERED CHUNKS:", len(filtered_chunks))
+        print("RESUME CHUNKS:", len(resume_chunks))
+
 
 
     # =========================
@@ -246,26 +254,27 @@ def hybrid_retrieve(
         k=150
     )
 
+    if DEBUG:
+        print("\nLOOKING FOR CHUNK 570")
 
-    print("\nLOOKING FOR CHUNK 570")
+        for doc, score in all_semantic_results:
 
-    for doc, score in all_semantic_results:
+            if doc.metadata.get("chunk_id") == 570:
 
-        if doc.metadata.get("chunk_id") == 570:
+                print("\nFOUND CHUNK 570")
+                print("SCORE:", score)
+                print(doc.page_content)
 
-            print("\nFOUND CHUNK 570")
-            print("SCORE:", score)
-            print(doc.page_content)
+    if DEBUG:
+        print("\nSEMANTIC RESULTS")
+        for doc, score in all_semantic_results:
+            print(
+                doc.metadata.get("source"),
+                doc.metadata.get("chunk_id"),
+                score
+            )
 
-    print("\nSEMANTIC RESULTS")
-    for doc, score in all_semantic_results:
-        print(
-            doc.metadata.get("source"),
-            doc.metadata.get("chunk_id"),
-            score
-        )
-
-    if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+    if DEBUG and doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
 
         print(
             "RESUME",
@@ -318,7 +327,7 @@ def hybrid_retrieve(
 
             and
 
-            similarity_score >= 0.10
+            similarity_score >= SIMILARITY_THRESHOLD
         ):
 
             semantic_results.append(
@@ -340,7 +349,19 @@ def hybrid_retrieve(
         reverse=True
     )
 
-    print("\nRESUME CHUNKS IN SEMANTIC RESULTS")
+    if DEBUG:
+
+        print("\nFILTERED SEMANTIC RESULTS")
+
+        for doc, score in semantic_results:
+
+            print(
+                doc.metadata.get("source"),
+                doc.metadata.get("chunk_id"),
+                score
+            )
+    if DEBUG:
+        print("\nRESUME CHUNKS IN SEMANTIC RESULTS")
 
     for doc, score in semantic_results:
 
@@ -537,42 +558,42 @@ def hybrid_retrieve(
     ]
 
 
+    if DEBUG:
+        print("\nTOP HYBRID RESULTS")
 
-    print("\nTOP HYBRID RESULTS")
+        for rank, (doc, score) in enumerate(combined_results[:15], start=1):
 
-    for rank, (doc, score) in enumerate(combined_results[:15], start=1):
-
-        print("\nRANK:", rank)
-        print("CHUNK ID:", doc.metadata.get("chunk_id"))
-        print("SOURCE:", doc.metadata.get("source"))
-        print("RRF SCORE:", score)
-        print(doc.page_content[:200])
+            print("\nRANK:", rank)
+            print("CHUNK ID:", doc.metadata.get("chunk_id"))
+            print("SOURCE:", doc.metadata.get("source"))
+            print("RRF SCORE:", score)
+            print(doc.page_content[:200])
 
         print("\nCHECKING FOR RESUME CHUNKS")
 
-    for doc, score in combined_results:
+        for doc, score in combined_results:
 
-        if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+            if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
 
-            print("\nRESUME CHUNK FOUND")
-            print("CHUNK ID:", doc.metadata.get("chunk_id"))
-            print("RANK SCORE:", score)
-            print(doc.page_content[:200])
+                print("\nRESUME CHUNK FOUND")
+                print("CHUNK ID:", doc.metadata.get("chunk_id"))
+                print("RANK SCORE:", score)
+                print(doc.page_content[:200])
 
 
-    print("\n" + "="*80)
-    print("ALL RESUME CHUNKS RETURNED BY RETRIEVAL")
-    print("="*80)
+        print("\n" + "="*80)
+        print("ALL RESUME CHUNKS RETURNED BY RETRIEVAL")
+        print("="*80)
 
-    for doc, score in combined_results:
+        for doc, score in combined_results:
 
-        if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
+            if doc.metadata.get("source") == "K.V.S MOHITH RESUME FINAL.pdf":
 
-            print("\nCHUNK ID:", doc.metadata.get("chunk_id"))
-            print("SCORE:", score)
+                print("\nCHUNK ID:", doc.metadata.get("chunk_id"))
+                print("SCORE:", score)
 
-            print("CONTENT:")
-            print(doc.page_content[:300])
+                print("CONTENT:")
+                print(doc.page_content[:300])
 
         print("-"*80)
 

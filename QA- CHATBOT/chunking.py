@@ -13,14 +13,14 @@
 
 import re
 
+from config import (
+    MAX_CHUNK_LENGTH,
+    MIN_CHUNK_LENGTH
+)
 
 # =========================
 # CHUNK SETTINGS
 # =========================
-
-MAX_CHUNK_LENGTH = 700
-
-MIN_CHUNK_LENGTH = 30
 
 CHUNK_OVERLAP = 120
 
