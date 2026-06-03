@@ -254,6 +254,13 @@ def ask_question(
     conversation_context = ""
 
 
+    print("\nCHAT HISTORY LENGTH:")
+    print(len(chat_history))
+
+    print("\nCHAT HISTORY CONTENT:")
+    print(chat_history)
+    
+
     for chat in chat_history[-3:]:
 
         conversation_context += (
