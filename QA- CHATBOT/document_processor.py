@@ -26,6 +26,12 @@ def load_pdf(file_path):
 
     documents = loader.load()
 
+    print("\nRAW PAGE 1:")
+    print(documents[0].page_content)
+
+    print("\nFIRST PAGE RAW TEXT:")
+    
+
     print("\n" + "=" * 80)
     print("PDF EXTRACTION DEBUG")
     print("=" * 80)
@@ -36,7 +42,11 @@ def load_pdf(file_path):
 
         print("-" * 50)
 
-        print(doc.page_content[:2000])
+        print(
+            doc.page_content[:2000]
+            .encode("ascii", errors="ignore")
+            .decode()
+        )
 
     print("\n" + "=" * 80)
 
@@ -85,18 +95,7 @@ def clean_text(text):
     text = re.sub(r'\b\d+\s*/\s*\d+\b', '', text)
 
 
-    # =====================================================
-    # REMOVE BROKEN NUMBERING
-    # =====================================================
-
-    text = re.sub(r'\b\d+(\.\d+)+', '', text)
-
-
     
-
-
-
-
 
     # =====================================================
     # CLEAN MULTIPLE NEWLINES

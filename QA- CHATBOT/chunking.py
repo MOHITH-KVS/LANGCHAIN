@@ -385,6 +385,10 @@ def create_chunks(
 
         if is_heading(line):
 
+            print("\nHEADING DETECTED:")
+            print(line)
+            print("=" * 50)
+
             heading_candidate = re.sub(
                 r"[^a-zA-Z0-9\s]",
                 "",

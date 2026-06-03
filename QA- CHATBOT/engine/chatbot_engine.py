@@ -283,6 +283,15 @@ def ask_question(
     )
 
 
+    print("\n" + "="*60)
+    print("ORIGINAL QUESTION:")
+    print(question)
+
+    print("\nREWRITTEN QUERY:")
+    print(rewritten_query)
+    print("="*60)
+
+
     # =========================
     # DOCUMENT ROUTING
     # =========================
@@ -314,9 +323,7 @@ def ask_question(
 
         selected_documents = [
 
-            doc["source"]
-
-            for doc in matched_documents
+            matched_documents[0]["source"]
         ]
 
         document_score = matched_documents[0]["score"]
