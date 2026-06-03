@@ -56,7 +56,7 @@ MIN_CHUNK_LENGTH = 30
 
 RERANKER_MODEL = "BAAI/bge-reranker-base"
 
-LEXICAL_BOOST_WEIGHT = 0.15
+LEXICAL_BOOST_WEIGHT = 0.30
 
 
 # =========================

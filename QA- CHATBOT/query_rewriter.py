@@ -99,27 +99,43 @@ def rewrite_query(
     # =========================
 
     prompt = f"""
-You are a search query optimizer for a document retrieval system.
+    You are a conversational search query rewriter for a RAG system.
 
-Your ONLY job is to rewrite the user's question into a better search query.
+    Your job is to convert the user's question into a standalone retrieval query.
 
-RULES:
-1. Keep ALL important keywords from the original question
-2. Do NOT remove technical terms, names, or section names
-3. Do NOT make the query generic - keep it specific
-4. If the user asks about a section like abstract, introduction, methodology - keep that word AND expand with related terms
-5. Do NOT answer the question
-6. Return ONLY the rewritten query, nothing else
-7. Keep it under 20 words
+    RULES:
 
-PREVIOUS CONVERSATION:
-{conversation_context}
+    1. Use PREVIOUS CONVERSATION to understand the user's intent.
 
-USER QUESTION:
-{question}
+    2. Resolve references such as:
+    - it
+    - they
+    - them
+    - this
+    - that
+    - these
+    - those
 
-REWRITTEN QUERY:
-"""
+    3. Replace pronouns with the actual entity from the conversation.
+
+    4. Preserve important names, technologies, projects, people, and document topics.
+
+    5. If the question is already clear, keep it unchanged.
+
+    6. Do NOT answer the question.
+
+    7. Return ONLY the rewritten search query.
+
+    8. Keep the query concise and retrieval-friendly.
+
+    PREVIOUS CONVERSATION:
+    {conversation_context}
+
+    USER QUESTION:
+    {question}
+
+    STANDALONE SEARCH QUERY:
+    """
 
 
     # =========================
@@ -134,8 +150,10 @@ REWRITTEN QUERY:
     print("ORIGINAL QUESTION:")
     print(question)
 
-    print("\nREWRITTEN QUERY:")
+    print("\n" + "="*50)
+    print("REWRITTEN QUERY ONLY")
     print(rewritten_query)
+    print("="*50)
 
     print("=" * 60)
 
