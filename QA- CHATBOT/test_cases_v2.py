@@ -194,6 +194,8 @@ for idx, test in enumerate(test_cases, start=1):
                 "not available" in answer
                 or "not found" in answer
                 or "context" in answer
+                or "does not contain enough information" in answer
+                or "insufficient information" in answer
             ):
 
                 result = "PASS"
@@ -236,6 +238,18 @@ for idx, test in enumerate(test_cases, start=1):
 
         print("\nRESULT:")
         print(result)
+
+        answer = response["answer"].lower()
+
+        print("\nANSWER:")
+        print(response["answer"])
+
+        if result == "FAIL":
+
+            print("\nEXPECTED KEYWORDS:")
+            print(expected_keywords)
+
+            print("\n" + "=" * 80)
 
     except Exception as e:
 

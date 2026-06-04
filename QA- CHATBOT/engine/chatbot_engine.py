@@ -25,7 +25,7 @@ from reranker import rerank_chunks
 
 from generation import generate_answer
 
-from services.context_compressor import compress_context
+#from services.context_compressor import compress_context
 
 from query_rewriter import rewrite_query
 
@@ -71,7 +71,7 @@ RELATIVE_SCORE_THRESHOLD = 0.50
 
 MAX_CONTEXT_TOKENS = 2500
 
-MIN_RERANK_SCORE = -5.0
+MIN_RERANK_SCORE = 0.0
 
 MIN_CONTEXT_CHUNKS = 1
 
@@ -568,12 +568,12 @@ def ask_question(
     # CONTEXT COMPRESSION
     # =========================
 
-    filtered_chunks = compress_context(
-        filtered_chunks
-    )
+    #filtered_chunks = compress_context(
+    #    filtered_chunks
+    #)
 
-    print("\nCOMPRESSED CHUNKS:")
-    print(len(filtered_chunks))
+    #print("\nCOMPRESSED CHUNKS:")
+    #print(len(filtered_chunks))
 
 
 
