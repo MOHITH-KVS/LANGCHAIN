@@ -25,6 +25,8 @@ from reranker import rerank_chunks
 
 from generation import generate_answer
 
+from services.context_compressor import compress_context
+
 from query_rewriter import rewrite_query
 
 from document_router import route_documents
@@ -560,6 +562,18 @@ def ask_question(
 
 
     top_rerank_score = filtered_chunks[0][1]
+
+
+    # =========================
+    # CONTEXT COMPRESSION
+    # =========================
+
+    filtered_chunks = compress_context(
+        filtered_chunks
+    )
+
+    print("\nCOMPRESSED CHUNKS:")
+    print(len(filtered_chunks))
 
 
 

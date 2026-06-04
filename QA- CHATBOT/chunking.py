@@ -35,6 +35,14 @@ def detect_heading_score(line):
 
     line = clean_line(line)
 
+    # Reject GPA / percentage style lines
+
+    if re.search(r"\d+\.\d+", line):
+        return -99
+    
+    if re.search(r"cgpa|gpa|percentage|%", line.lower()):
+        return -99
+
     if not line:
 
         return 0
