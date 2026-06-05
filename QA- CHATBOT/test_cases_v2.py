@@ -29,7 +29,7 @@ test_cases = [
     {
         "question": "What skills does Mohith have?",
         "expected_keywords": [
-            "python",
+            "opencv",
             "sql",
             "power bi"
         ]
@@ -38,8 +38,9 @@ test_cases = [
     {
         "question": "What projects has Mohith completed?",
         "expected_keywords": [
-            "sleep",
-            "advisor"
+            "g-tri-bal",
+            "solo",
+            "traveller"
         ]
     },
 
