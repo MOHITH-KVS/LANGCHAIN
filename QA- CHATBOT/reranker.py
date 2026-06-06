@@ -146,9 +146,7 @@ def rerank_chunks(
     # =========================
 
     pairs = [
-
-        [query, doc.page_content]
-
+        [query, doc.page_content + " " + doc.metadata.get("section", "")]
         for doc in docs
     ]
 

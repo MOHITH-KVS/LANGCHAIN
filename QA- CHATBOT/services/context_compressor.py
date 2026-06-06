@@ -7,18 +7,11 @@ def compress_context(reranked_chunks):
     if not reranked_chunks:
         return []
 
-    top_score = reranked_chunks[0][1]
+    # Do not drop chunks based on relative score threshold.
+    # The reranker scores vary wildly depending on query type.
+    # Dropping by percentage causes incomplete answers when
+    # content is split across many small chunks.
+    # Instead return all chunks and let the token budget
+    # in context packing control what fits.
 
-    threshold = top_score * 0.30
-
-    compressed_chunks = []
-
-    for chunk, score in reranked_chunks:
-
-        if score >= threshold:
-
-            compressed_chunks.append(
-                (chunk, score)
-            )
-
-    return compressed_chunks
+    return reranked_chunks

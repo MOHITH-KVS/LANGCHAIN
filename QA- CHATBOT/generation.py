@@ -51,7 +51,9 @@ llm = ChatGroq(
 
     model_name=GENERATION_MODEL,
 
-    temperature=TEMPERATURE
+    temperature=TEMPERATURE,
+
+    max_tokens=2048
 )
 
 
@@ -71,80 +73,33 @@ prompt_template = PromptTemplate(
     ],
 
     template="""
+    You are a document extraction assistant.
 
-You are an industrial-grade Retrieval-Augmented Generation (RAG) assistant.
+    Your ONLY job is to extract and present information from the RETRIEVED CONTEXT below.
 
-Your responsibility is to answer the user's question ONLY using the retrieved context.
+    STRICT RULES:
+    1. Use ONLY the RETRIEVED CONTEXT. Never use outside knowledge.
+    2. NEVER skip, summarize, or omit any item from the context.
+    3. If the question asks for projects, list EVERY project found across ALL chunks.
+    4. If the question asks for skills, list EVERY skill found across ALL chunks.
+    5. If the question asks for certifications, list EVERY certification found across ALL chunks.
+    6. Scan EVERY chunk completely before writing your answer.
+    7. Do NOT say "and more" or "etc." - always list everything explicitly.
+    8. If the answer is not in the context, say only: "The document does not contain this information."
+    9. Do NOT mention chunks, retrieval, embeddings, or context in your answer.
+    10. Format your answer clearly with bullet points when listing items.
 
-==================================================
-STRICT RULES
-==================================================
+    RETRIEVED CONTEXT:
+    {context}
 
-1. NEVER use outside knowledge.
+    PREVIOUS CONVERSATION:
+    {conversation_context}
 
-2. NEVER hallucinate or invent facts.
+    QUESTION:
+    {question}
 
-3. NEVER assume missing information.
-
-4. If the answer is not available in the context, respond ONLY with:
-"The document does not contain enough information."
-
-5. Preserve:
-   - names
-   - numbers
-   - technical terms
-   - skills
-   - technologies
-   - entities
-   exactly as written.
-
-6. Keep answers:
-   - professional
-   - concise
-   - well-structured
-   - human-readable
-
-7. Use bullet points whenever appropriate.
-
-8. If the context contains lists, skills, tools, technologies, or features:
-   organize them clearly using bullets.
-
-9. Do NOT mention:
-   - chunks
-   - retrieval
-   - embeddings
-   - vector databases
-   - provided context
-
-10. Synthesize information naturally instead of copying raw chunk text.
-
-
-==================================================
-RETRIEVED CONTEXT
-==================================================
-
-{context}
-
-
-==================================================
-PREVIOUS CONVERSATION
-==================================================
-
-{conversation_context}
-
-
-==================================================
-QUESTION
-==================================================
-
-{question}
-
-
-==================================================
-ANSWER
-==================================================
-
-"""
+    ANSWER (include ALL items found in context, do not skip any):
+    """
 )
 
 
@@ -316,7 +271,7 @@ def generate_answer(
 
     unique_chunks = remove_duplicate_chunks(
 
-        reranked_chunks[:10]
+        reranked_chunks[:15]
     )
 
     if len(unique_chunks) == 0:

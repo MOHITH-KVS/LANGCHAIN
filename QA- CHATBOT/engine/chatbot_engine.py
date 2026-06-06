@@ -67,11 +67,11 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 
 MIN_RELEVANCE_SCORE = 0.20
 
-MAX_CONTEXT_CHUNKS = 10
+MAX_CONTEXT_CHUNKS = 15
 
 RELATIVE_SCORE_THRESHOLD = 0.50
 
-MAX_CONTEXT_TOKENS = 2500
+MAX_CONTEXT_TOKENS = 3500
 
 MIN_RERANK_SCORE = 0.0
 
@@ -371,7 +371,7 @@ def ask_question(
 
         source_filter=selected_documents,
 
-        k=15
+        k=25
     )
 
 

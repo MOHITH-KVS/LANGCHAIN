@@ -61,11 +61,11 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 
 MIN_RELEVANCE_SCORE = -2.0
 
-MAX_CONTEXT_CHUNKS = 5
+MAX_CONTEXT_CHUNKS = 12
 
 RELATIVE_SCORE_THRESHOLD = 0.55
 
-MAX_CONTEXT_TOKENS = 1800
+MAX_CONTEXT_TOKENS = 3500
 
 
 # =========================

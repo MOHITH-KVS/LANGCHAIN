@@ -211,15 +211,18 @@ def split_into_sections(text):
 
     current_content = []
 
-
+    prev_line_was_bullet = False
+    prev_line_was_heading = False
     for line in lines:
 
         clean_line = line.strip()
 
 
         if not clean_line:
-
+            prev_line_was_bullet = False
             continue
+
+        is_bullet_line = clean_line.startswith(("-", "•", "*"))
 
 
         # =====================================================
@@ -260,7 +263,7 @@ def split_into_sections(text):
 
         contains_many_symbols = len(
 
-            re.findall(r"[:()\-]", clean_line)
+            re.findall(r"[:()\[\]{}]", clean_line)
 
         ) >= 2
 
@@ -349,14 +352,18 @@ def split_into_sections(text):
         )
 
         is_heading = (
-            not code_signals
-            and word_count <= 6
+            word_count <= 6
+            and word_count >= 2
             and not starts_with_bullet
             and not has_terminal_punctuation
             and not contains_many_symbols
             and not contains_numbers
             and len(clean_line) < 50
+            and len(clean_line) > 8
             and title_case_ratio > 0.6
+            and heading_score >= 3
+            and not prev_line_was_bullet
+            and not prev_line_was_heading
         )
 
 
@@ -375,20 +382,27 @@ def split_into_sections(text):
                     "content": "\n".join(current_content)
                 })
 
+                current_content = []
 
-            detected_section = detect_section(clean_line)
+                detected_section = detect_section(clean_line)
 
-            if detected_section != "general":
-                current_section = detected_section
+                if detected_section != "general":
+                    current_section = detected_section
+                else:
+                    current_section = clean_line.lower().replace(":", "").strip()
+
             else:
-                current_section = clean_line.lower().replace(":", "").strip()
 
-            current_content = []
-
+                # No content yet — this is a sub-heading, treat as content
+                current_content.append(clean_line)
 
         else:
 
             current_content.append(clean_line)
+
+        prev_line_was_bullet = is_bullet_line
+        prev_line_was_heading = is_heading
+        
 
 
     # =====================================================

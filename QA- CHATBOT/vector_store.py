@@ -598,4 +598,17 @@ def hybrid_retrieve(
         print("-"*80)
 
 
+    print("\nFINAL TOP K CHUNKS")
+
+    for doc, score in combined_results[:10]:
+
+        print(
+            "CHUNK:",
+            doc.metadata.get("chunk_id", "N/A"),
+            "| SECTION:",
+            doc.metadata.get("section", "N/A"),
+            "| SCORE:",
+            round(score, 4)
+        )
+
     return combined_results[:k]
