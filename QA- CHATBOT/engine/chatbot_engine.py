@@ -25,7 +25,9 @@ from reranker import rerank_chunks
 
 from generation import generate_answer
 
-#from services.context_compressor import compress_context
+from services.context_compressor import compress_context
+
+from services.answer_validator import validate_context
 
 from query_rewriter import rewrite_query
 
@@ -568,12 +570,27 @@ def ask_question(
     # CONTEXT COMPRESSION
     # =========================
 
-    #filtered_chunks = compress_context(
-    #    filtered_chunks
-    #)
+    filtered_chunks = compress_context(
+        filtered_chunks
+    )
 
-    #print("\nCOMPRESSED CHUNKS:")
-    #print(len(filtered_chunks))
+    is_valid = validate_context(
+        filtered_chunks
+    )
+
+
+    if not is_valid:
+
+        return {
+            "answer": (
+                "The uploaded documents do not contain "
+                "enough information to answer this question."
+            ),
+            "sources": []
+        }
+
+    print("\nCOMPRESSED CHUNKS:")
+    print(len(filtered_chunks))
 
 
 

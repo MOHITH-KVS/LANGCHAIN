@@ -118,15 +118,35 @@ def rewrite_query(
 
     3. Replace pronouns with the actual entity from the conversation.
 
-    4. Preserve important names, technologies, projects, people, and document topics.
+    4. Resolve ordinal references such as:
+        - first one
+        - second one
+        - third one
+        - first project
+        - second project
+        - last one
+        - previous one
 
-    5. If the question is already clear, keep it unchanged.
+        Use the exact entity name mentioned in the previous conversation.
 
-    6. Do NOT answer the question.
+        Example:
+        User: What projects has Mohith completed?
+        Assistant: G-TRI-BAL App UI, Solo Traveller App UI
 
-    7. Return ONLY the rewritten search query.
+        User: Explain the first one
 
-    8. Keep the query concise and retrieval-friendly.
+        Rewrite:
+        Explain the G-TRI-BAL App UI project in detail
+
+    5. Preserve important names, technologies, projects, people, and document topics.
+
+    6. If the question is already clear, keep it unchanged.
+
+    7. Do NOT answer the question.
+
+    8. Return ONLY the rewritten search query.
+
+    9. Keep the query concise and retrieval-friendly.
 
     PREVIOUS CONVERSATION:
     {conversation_context}
