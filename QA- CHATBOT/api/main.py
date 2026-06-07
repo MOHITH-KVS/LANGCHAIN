@@ -109,6 +109,13 @@ def chat(request: ChatRequest):
             document_name=request.document_name
         )
 
+        answer = response.get("answer", "")
+
+        while answer.endswith(","):
+            answer = answer[:-1].strip()
+
+        response["answer"] = answer
+
         return response
 
     except Exception as e:

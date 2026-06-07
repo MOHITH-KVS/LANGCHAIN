@@ -53,7 +53,7 @@ llm = ChatGroq(
 
     temperature=TEMPERATURE,
 
-    max_tokens=2048
+    max_tokens=4096
 )
 
 
@@ -80,7 +80,7 @@ prompt_template = PromptTemplate(
     STRICT RULES:
     1. Use ONLY the RETRIEVED CONTEXT. Never use outside knowledge.
     2. NEVER skip, summarize, or omit any item from the context.
-    3. If the question asks for projects, list EVERY project found across ALL chunks.
+    3. If the question asks for projects, list ONLY items explicitly listed under project sections. Do NOT include internship experiences, hackathon participations, or leadership roles as projects unless the question specifically asks for them.
     4. If the question asks for skills, list EVERY skill found across ALL chunks.
     5. If the question asks for certifications, list EVERY certification found across ALL chunks.
     6. Scan EVERY chunk completely before writing your answer.
@@ -323,6 +323,13 @@ def generate_answer(
             .replace("\\n", "\n")
             .strip()
         )
+
+        # Remove trailing comma or comma+space at end of answer
+        if answer.endswith(","):
+            answer = answer[:-1].strip()
+
+        if answer.endswith(",\n"):
+            answer = answer[:-2].strip()
 
     except Exception as e:
 

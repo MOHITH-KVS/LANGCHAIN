@@ -373,29 +373,26 @@ def create_chunks(
     # STRUCTURE-AWARE PARSING
     # =========================
 
+    prev_line_was_bullet = False
+    prev_line_was_heading = False
+
     for line in lines:
 
         line = clean_line(line)
 
-
-        # =========================
-        # EMPTY LINE
-        # =========================
-
         if not line:
-
+            prev_line_was_bullet = False
             continue
 
+        is_bullet = line.startswith(("-", "•", "*"))
 
-        # =========================
-        # NEW HEADING DETECTED
-        # =========================
+        detected_as_heading = (
+            is_heading(line)
+            and not prev_line_was_bullet
+            and not prev_line_was_heading
+        )
 
-        if is_heading(line):
-
-            print("\nHEADING DETECTED:")
-            print(line)
-            print("=" * 50)
+        if detected_as_heading:
 
             heading_candidate = re.sub(
                 r"[^a-zA-Z0-9\s]",
@@ -403,53 +400,34 @@ def create_chunks(
                 line.lower()
             ).strip()
 
-
             invalid_heading = (
-
                 heading_candidate.startswith("-")
                 or heading_candidate.startswith("•")
                 or len(heading_candidate) < 3
                 or heading_candidate.count(":") > 1
                 or heading_candidate.count("(") > 1
                 or heading_candidate in [":", "-", "--"]
-
+                or "_" in heading_candidate
+                or re.search(r"\b(none|true|false|null|str|int|float|bool|list|dict|optional)\b", heading_candidate)
             )
-
 
             if not invalid_heading:
 
-
-                # =========================
-                # SAVE PREVIOUS SECTION
-                # =========================
-
                 if current_content:
-
                     semantic_blocks.append({
-
                         "section": current_heading,
-
                         "content": "\n".join(current_content)
-
                     })
-
                     current_content = []
 
-
-                # =========================
-                # UPDATE TO NEW HEADING
-                # =========================
-
                 current_heading = heading_candidate
-
+                prev_line_was_bullet = False
+                prev_line_was_heading = True
                 continue
 
-
-        # =========================
-        # NORMAL CONTENT
-        # =========================
-
         current_content.append(line)
+        prev_line_was_bullet = is_bullet
+        prev_line_was_heading = False
 
 
     # =========================

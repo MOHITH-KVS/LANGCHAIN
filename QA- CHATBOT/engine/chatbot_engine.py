@@ -23,6 +23,8 @@ from vector_store import (
 
 from reranker import rerank_chunks
 
+import importlib, generation
+importlib.reload(generation)
 from generation import generate_answer
 
 from services.context_compressor import compress_context
@@ -740,6 +742,15 @@ def ask_question(
 
 
     # =========================
+    # CLEAN FINAL ANSWER
+    # =========================
+
+    final_answer = generation_result["answer"]
+
+    while final_answer.endswith(","):
+        final_answer = final_answer[:-1].strip()
+
+    # =========================
     # SAVE CHAT HISTORY
     # =========================
 
@@ -747,7 +758,7 @@ def ask_question(
 
         "question": question,
 
-        "answer": generation_result["answer"],
+        "answer": final_answer,
 
         "sources": generation_result["sources"]
     })
@@ -775,7 +786,7 @@ def ask_question(
 
         "context_tokens": int(current_token_count),
 
-        "answer": generation_result["answer"],
+        "answer": final_answer,
 
         "sources": generation_result["sources"]
 
