@@ -51,7 +51,12 @@ deepseek_llm = ChatOpenAI(
 
     base_url="https://openrouter.ai/api/v1",
 
-    model="deepseek/deepseek-chat-v3",
+    model="deepseek/deepseek-chat-v3-0324",
+
+    default_headers={
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "QA Chatbot"
+    },
 
     temperature=0
 )
@@ -94,6 +99,10 @@ def invoke_llm(prompt):
                 return deepseek_llm.invoke(prompt)
 
             except Exception as deepseek_error:
+
+                print("\nDEEPSEEK FAILED")
+
+                print(str(deepseek_error))
 
                 raise Exception(
 
