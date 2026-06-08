@@ -10,7 +10,7 @@
 #| Optimize retrieval queries  | improve RAG accuracy             |
 
 
-from langchain_groq import ChatGroq
+from services.llm_router import invoke_llm
 
 from dotenv import load_dotenv
 
@@ -19,18 +19,7 @@ import os
 load_dotenv()
 
 
-# =========================
-# LLM
-# =========================
 
-llm = ChatGroq(
-
-    groq_api_key=os.getenv("GROQ_API_KEY"),
-
-    model_name="llama-3.3-70b-versatile",
-
-    temperature=0
-)
 
 
 # =========================
@@ -162,7 +151,7 @@ def rewrite_query(
     # LLM REWRITING
     # =========================
 
-    response = llm.invoke(prompt)
+    response = invoke_llm(prompt)
 
     rewritten_query = response.content.strip()
 

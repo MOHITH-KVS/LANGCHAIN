@@ -22,9 +22,11 @@
 # return final grounded answer
 
 
-from langchain_groq import ChatGroq
+
 
 from langchain_core.prompts import PromptTemplate
+
+from services.llm_router import invoke_llm
 
 from dotenv import load_dotenv
 
@@ -41,20 +43,7 @@ from config import (
 load_dotenv()
 
 
-# =========================
-# LLM
-# =========================
 
-llm = ChatGroq(
-
-    groq_api_key=os.getenv("GROQ_API_KEY"),
-
-    model_name=GENERATION_MODEL,
-
-    temperature=TEMPERATURE,
-
-    max_tokens=4096
-)
 
 
 # =========================
@@ -315,7 +304,7 @@ def generate_answer(
 
     try:
 
-        response = llm.invoke(final_prompt)
+        response = invoke_llm(final_prompt)
 
         answer = (
 
