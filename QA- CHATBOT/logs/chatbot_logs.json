@@ -113,5 +113,37 @@
         "rerank_score": 0.3159192942082882,
         "response_time": 6.25,
         "answer": "* Computer Vision Intern at Codecrafters (Remote) | Jul 2024 – Present\n* Design intern at MXC (Remote) | August 2025 - Present\n* AI&ML Intern at AIMERS (Remote) | May 2025 – Jul 2025\n* UI/UX Intern at Spotmies | May 2023 – Jul 2023"
+    },
+    {
+        "timestamp": "2026-06-10 00:18:04.628493",
+        "question": "what is mohith's cgpa",
+        "rewritten_query": "What is Mohith's CGPA",
+        "selected_documents": null,
+        "document_score": 0.3122868785262108,
+        "rerank_score": 0.6385076403617859,
+        "context_tokens": 1719,
+        "answer": "Mohith's CGPA is 8.84.",
+        "sources": [
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 2 | Section: certificate",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: 91 8309128335",
+            "GVP-MAAA PAPER.pdf | Page 2 | Section: 2 literature survey",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 14 | Section: 1introduction",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 50 | Section: implementation",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 32 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 39 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 163 | Section: 380391 2014",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 116 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 134 | Section: general"
+        ],
+        "response_time": 12.78
+    },
+    {
+        "timestamp": "2026-06-10 00:18:04.628493",
+        "question": "what is mohith's cgpa",
+        "rewritten_query": "What is Mohith's CGPA",
+        "document_score": 0.3122868785262108,
+        "rerank_score": 0.6385076403617859,
+        "response_time": 12.78,
+        "answer": "Mohith's CGPA is 8.84."
     }
 ]

@@ -1,3 +1,49 @@
+# =============================================================
+# .gitignore  —  PHASE 1 UPDATED VERSION
+# =============================================================
+#
+# Everything listed here is IGNORED by git.
+# These files will NOT be uploaded to GitHub.
+#
+# WHY THIS MATTERS:
+#   If .env is ever committed to GitHub (even once),
+#   bots scan GitHub 24/7 and will steal your API keys within minutes.
+#
+
+# --- Secret keys (NEVER commit these) ---
 .env
+.env.local
+.env.production
+
+# --- Python virtual environment ---
 venv/
+env/
+.venv/
+
+# --- Python bytecode (auto-generated, not needed in git) ---
 __pycache__/
+*.pyc
+*.pyo
+
+# --- Your personal documents (don't expose these) ---
+documents/*.pdf
+
+# --- Logs (can get large, not useful in git) ---
+logs/
+*.log
+
+# --- Feedback data (user data, keep private) ---
+feedback/
+
+# --- FAISS index files (large binary files, regenerated on startup) ---
+# Uncomment the next two lines ONLY if your index is too large for git.
+# For now keep them committed so Render can use them without rebuilding.
+# faiss_index/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- IDE files ---
+.vscode/
+.idea/
