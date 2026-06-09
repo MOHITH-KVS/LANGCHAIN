@@ -25,5 +25,59 @@
         "rerank_score": 1.2561897397041322,
         "response_time": 14.34,
         "answer": "Mohith's CGPA is 8.84."
+    },
+    {
+        "timestamp": "2026-06-09 19:07:09.742110",
+        "question": "What is Mohith's CGPA?",
+        "rewritten_query": "What is Mohith's Cumulative Grade Point Average",
+        "document_score": 0.2528669714927673,
+        "rerank_score": 0.6223827362060547,
+        "response_time": 17.28,
+        "answer": "The document does not contain this information."
+    },
+    {
+        "timestamp": "2026-06-09 21:44:07.846100",
+        "question": "What is Mohith's CGPA?",
+        "rewritten_query": "Mohith's CGPA",
+        "document_score": 0.40885114371776576,
+        "rerank_score": 0.6373264923691749,
+        "response_time": 6.47,
+        "answer": "Mohith's CGPA is 8.84."
+    },
+    {
+        "timestamp": "2026-06-09 21:52:06.668464",
+        "question": "Which college is Mohith studying in?",
+        "rewritten_query": "Which college is Mohith studying in?",
+        "document_score": 0.34114994406700133,
+        "rerank_score": 1.5187467157840728,
+        "response_time": 6.95,
+        "answer": "Mohith is studying in Gayatri Vidya Parishad College for Degree and PG Courses (A)."
+    },
+    {
+        "timestamp": "2026-06-09 21:52:25.379112",
+        "question": "What is Mohith's specialization?",
+        "rewritten_query": "What is Mohith's specialization at Gayatri Vidya Parishad College for Degree and PG Courses (A)",
+        "document_score": 0.39661279916763303,
+        "rerank_score": 4.297094750404358,
+        "response_time": 3.89,
+        "answer": "Mohith's specialization is in Artificial Intelligence and Machine Learning."
+    },
+    {
+        "timestamp": "2026-06-09 21:52:46.329773",
+        "question": "What internships has Mohith completed?",
+        "rewritten_query": "What internships has Mohith, a student at Gayatri Vidya Parishad College for Degree and PG Courses (A) specializing in Artificial Intelligence and Machine Learning, completed?",
+        "document_score": 0.5353462719398996,
+        "rerank_score": 5.4917643666267395,
+        "response_time": 4.39,
+        "answer": "Mohith has completed the following internships:\n* Computer Vision Intern at Codecrafters (Remote) | Jul 2024 – Present\n* Design intern at MXC (Remote) | August 2025 - Present\n* AI&ML Intern at AIMERS (Remote) | May 2025 – Jul 2025\n* UI/UX Intern at Spotmies | May 2023 – Jul 2023"
+    },
+    {
+        "timestamp": "2026-06-09 21:53:20.829938",
+        "question": "What is Mohith's favorite cricket player?",
+        "rewritten_query": "Mohith's favorite cricket player",
+        "document_score": 0.0,
+        "rerank_score": 0.72050039768219,
+        "response_time": 10.51,
+        "answer": "The document does not contain this information."
     }
 ]

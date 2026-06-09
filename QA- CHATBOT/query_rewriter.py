@@ -137,6 +137,10 @@ def rewrite_query(
 
     9. Keep the query concise and retrieval-friendly.
 
+    10. NEVER expand abbreviations or acronyms. Keep them exactly as written.
+        Example: CGPA stays as CGPA, not "Cumulative Grade Point Average"
+        Example: AI stays as AI, not "Artificial Intelligence"
+
     PREVIOUS CONVERSATION:
     {conversation_context}
 
