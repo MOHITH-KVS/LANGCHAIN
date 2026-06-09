@@ -7,5 +7,23 @@
         "rerank_score": 0.6223826952278614,
         "response_time": 19.74,
         "answer": "The document does not contain this information."
+    },
+    {
+        "timestamp": "2026-06-09 16:02:00.430781",
+        "question": "What is Mohith's CGPA?",
+        "rewritten_query": "What is Mohith's Cumulative Grade Point Average",
+        "document_score": 0.2528669714927673,
+        "rerank_score": 0.6223826952278614,
+        "response_time": 8.97,
+        "answer": "The document does not contain this information."
+    },
+    {
+        "timestamp": "2026-06-09 16:11:05.186614",
+        "question": "What is Mohith's CGPA?",
+        "rewritten_query": "Mohith's CGPA score",
+        "document_score": 0.30386351644992826,
+        "rerank_score": 1.2561897397041322,
+        "response_time": 14.34,
+        "answer": "Mohith's CGPA is 8.84."
     }
 ]

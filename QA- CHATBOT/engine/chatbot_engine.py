@@ -386,7 +386,7 @@ def ask_question(
     # HYBRID RETRIEVAL
     # =========================
 
-    combined_query = question + " " + rewritten_query
+    combined_query = question + " " + rewritten_query + " " + question
 
     retrieved_chunks = hybrid_retrieve(
 
@@ -400,7 +400,7 @@ def ask_question(
 
         source_filter=selected_documents,
 
-        k=25
+        k=40
     )
 
 
