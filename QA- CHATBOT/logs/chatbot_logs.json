@@ -1,0 +1,11 @@
+[
+    {
+        "timestamp": "2026-06-09 11:34:22.821143",
+        "question": "What is Mohith's CGPA?",
+        "rewritten_query": "What is Mohith's Cumulative Grade Point Average",
+        "document_score": 0.2528669714927673,
+        "rerank_score": 0.6223826952278614,
+        "response_time": 19.74,
+        "answer": "The document does not contain this information."
+    }
+]

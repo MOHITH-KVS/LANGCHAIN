@@ -10,6 +10,10 @@
 #| Return structured responses | API-ready architecture           |
 
 
+from time import time
+
+from datetime import datetime
+
 from langchain_community.vectorstores import FAISS
 
 from langchain_core.documents import Document
@@ -23,18 +27,22 @@ from vector_store import (
 
 from reranker import rerank_chunks
 
-import importlib, generation
-importlib.reload(generation)
 from generation import generate_answer
 
 from services.context_compressor import compress_context
 
 from services.answer_validator import validate_context
 
+from services.cache_manager import (
+    get_cached_response,
+    save_to_cache
+)
+
 from query_rewriter import rewrite_query
 
 from document_router import route_documents
 
+from services.logger import save_log
 
 
 from resource_manager import (
@@ -158,6 +166,10 @@ def ask_question(
     document_name=None
 ):
     
+    import time
+
+    start_time = time.time()
+    
     
     # =========================
     # LOAD CACHED RESOURCES
@@ -168,6 +180,21 @@ def ask_question(
     vector_store = get_vector_store()
 
     bm25 = get_bm25_index()
+
+
+    # =========================
+    # CACHE CHECK
+    # =========================
+
+    if document_name is None:
+
+        cached_response = get_cached_response(
+            question
+        )
+
+        if cached_response:
+            print("\nCACHE HIT")
+            return cached_response
 
 
     # =========================
@@ -334,7 +361,7 @@ def ask_question(
 
         document_score = matched_documents[0]["score"]
 
-        if document_score < 0.20:
+        if document_score < 0.35:
 
             selected_documents = None
 
@@ -764,11 +791,12 @@ def ask_question(
     })
 
 
+
     # =========================
     # RETURN RESPONSE
     # =========================
 
-    return {
+    final_response = {
 
         "question": question,
 
@@ -790,8 +818,62 @@ def ask_question(
 
         "sources": generation_result["sources"]
 
-        
     }
+
+
+    # =========================
+    # SAVE TO CACHE
+    # =========================
+
+    save_to_cache(
+
+        question,
+
+        final_response
+    )
+
+
+    # =========================
+    # RESPONSE TIME
+    # =========================
+
+    response_time = round(
+
+        time.time() - start_time,
+
+        2
+    )
+
+
+    # =========================
+    # LOG ENTRY
+    # =========================
+
+    log_entry = {
+
+        "timestamp": str(datetime.now()),
+
+        "question": question,
+
+        "rewritten_query": rewritten_query,
+
+        "document_score": float(document_score)
+        if document_score is not None
+        else None,
+
+        "rerank_score": float(top_rerank_score)
+        if top_rerank_score is not None
+        else None,
+
+        "response_time": response_time,
+
+        "answer": generation_result["answer"]
+    }
+
+    save_log(log_entry)
+
+
+    return final_response
 
 # =========================
 # INITIALIZE RESOURCES
