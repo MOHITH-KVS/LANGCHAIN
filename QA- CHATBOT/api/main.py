@@ -28,6 +28,9 @@ from services.indexing_service import (
     index_single_document
 )
 
+from services.feedback_manager import (
+    save_feedback
+)
 
 # =========================
 # FASTAPI APP
@@ -72,6 +75,16 @@ class UploadResponse(BaseModel):
     message: str
 
     filename: str
+
+
+class FeedbackRequest(BaseModel):
+
+    question: str
+
+    feedback: str
+
+
+
 
 # =========================
 # ROOT ENDPOINT
@@ -191,3 +204,29 @@ async def upload_pdf(
 
             "filename": file.filename
         }
+    
+
+# =========================
+# FEEDBACK ENDPOINT
+# =========================
+
+@app.post("/feedback")
+
+def submit_feedback(
+
+    request: FeedbackRequest
+):
+
+    save_feedback(
+
+        request.question,
+
+        request.feedback
+    )
+
+    return {
+
+        "status": "success",
+
+        "message": "Feedback saved successfully."
+    }

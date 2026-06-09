@@ -793,6 +793,40 @@ def ask_question(
 
 
     # =========================
+    # SAVE LOG
+    # =========================
+
+    save_log({
+
+        "timestamp": str(datetime.now()),
+
+        "question": question,
+
+        "rewritten_query": rewritten_query,
+
+        "selected_documents": selected_documents,
+
+        "document_score": document_score,
+
+        "rerank_score": float(top_rerank_score)
+        if top_rerank_score is not None
+        else None,
+
+        "context_tokens": current_token_count,
+
+        "answer": final_answer,
+
+        "sources": generation_result["sources"],
+
+        "response_time": round(
+            time.time() - start_time,
+            2
+        )
+    })
+
+
+
+    # =========================
     # RETURN RESPONSE
     # =========================
 

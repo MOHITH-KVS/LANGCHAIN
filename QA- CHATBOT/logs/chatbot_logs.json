@@ -79,5 +79,39 @@
         "rerank_score": 0.72050039768219,
         "response_time": 10.51,
         "answer": "The document does not contain this information."
+    },
+    {
+        "timestamp": "2026-06-09 22:24:44.810804",
+        "question": "What internships has Mohith completed?",
+        "rewritten_query": "Mohith internships completed",
+        "selected_documents": [
+            "K.V.S MOHITH RESUME FINAL.pdf"
+        ],
+        "document_score": 0.4399685263633728,
+        "rerank_score": 0.3159192942082882,
+        "context_tokens": 787,
+        "answer": "* Computer Vision Intern at Codecrafters (Remote) | Jul 2024 – Present\n* Design intern at MXC (Remote) | August 2025 - Present\n* AI&ML Intern at AIMERS (Remote) | May 2025 – Jul 2025\n* UI/UX Intern at Spotmies | May 2023 – Jul 2023",
+        "sources": [
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: 91 8309128335",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: internships",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: career objective",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: skills",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: education",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 2 | Section: multi agent",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 2 | Section: expert systems  ai applications",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: hackathons",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 2 | Section: general",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 2 | Section: leadership  event management"
+        ],
+        "response_time": 6.24
+    },
+    {
+        "timestamp": "2026-06-09 22:24:44.820712",
+        "question": "What internships has Mohith completed?",
+        "rewritten_query": "Mohith internships completed",
+        "document_score": 0.4399685263633728,
+        "rerank_score": 0.3159192942082882,
+        "response_time": 6.25,
+        "answer": "* Computer Vision Intern at Codecrafters (Remote) | Jul 2024 – Present\n* Design intern at MXC (Remote) | August 2025 - Present\n* AI&ML Intern at AIMERS (Remote) | May 2025 – Jul 2025\n* UI/UX Intern at Spotmies | May 2023 – Jul 2023"
     }
 ]
