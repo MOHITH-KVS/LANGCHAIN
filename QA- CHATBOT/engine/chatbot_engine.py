@@ -25,6 +25,11 @@ from vector_store import (
     hybrid_retrieve
 )
 
+from services.conversation_memory import (
+    get_conversation_history,
+    save_turn_to_history
+)
+
 from reranker import rerank_chunks
 
 from generation import generate_answer
@@ -146,25 +151,10 @@ def remove_duplicate_chunks(reranked_chunks):
 
 
 # =========================
-# CHAT MEMORY
-# =========================
-
-chat_history = []
-
-
-
-
-
-# =========================
 # MAIN CHATBOT FUNCTION
 # =========================
 
-def ask_question(
-
-    question,
-
-    document_name=None
-):
+def ask_question(question, document_name=None, session_id="default"):
     
     import time
 
@@ -284,25 +274,7 @@ def ask_question(
     # CONVERSATION MEMORY
     # =========================
 
-    conversation_context = ""
-
-
-    print("\nCHAT HISTORY LENGTH:")
-    print(len(chat_history))
-
-    print("\nCHAT HISTORY CONTENT:")
-    print(chat_history)
-    
-
-    for chat in chat_history[-3:]:
-
-        conversation_context += (
-
-            f"\nUser: {chat['question']}\n"
-
-            f"Assistant: {chat['answer']}\n"
-        )
-
+    conversation_context = get_conversation_history(session_id)
 
     # =========================
     # QUERY REWRITING
@@ -781,14 +753,11 @@ def ask_question(
     # SAVE CHAT HISTORY
     # =========================
 
-    chat_history.append({
-
-        "question": question,
-
-        "answer": final_answer,
-
-        "sources": generation_result["sources"]
-    })
+    save_turn_to_history(
+        session_id=session_id,
+        question=question,
+        answer=final_answer
+    )
 
 
 
