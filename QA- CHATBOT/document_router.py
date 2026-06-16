@@ -24,7 +24,6 @@ import re
 import requests
 import numpy as np
 
-from sklearn.metrics.pairwise import cosine_similarity
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -68,6 +67,23 @@ def encode_texts(texts):
         result.append(emb)
 
     return np.array(result)
+
+
+# =============================================================
+# COSINE SIMILARITY  (replaces sklearn.metrics.pairwise.cosine_similarity)
+# =============================================================
+# WHY: scikit-learn failed to build on Render (scipy compilation error).
+# We only used ONE function from it, so we replace it with plain numpy —
+# same math, zero extra dependencies, nothing else changes.
+
+def cosine_similarity_manual(a, b):
+    a = np.array(a)
+    b = np.array(b)
+
+    a_norm = a / (np.linalg.norm(a, axis=1, keepdims=True) + 1e-10)
+    b_norm = b / (np.linalg.norm(b, axis=1, keepdims=True) + 1e-10)
+
+    return np.dot(a_norm, b_norm.T)
 
 
 # =========================
@@ -158,7 +174,7 @@ def route_documents(query, top_k=10):
     query_embedding = encode_texts([query])
 
     # SEMANTIC SIMILARITY
-    semantic_scores = cosine_similarity(
+    semantic_scores = cosine_similarity_manual(
         query_embedding,
         document_embeddings
     )[0]
