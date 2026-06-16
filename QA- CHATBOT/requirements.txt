@@ -28,4 +28,4 @@ numpy==2.2.6
  
 upstash-redis
  
-requests==2.32.3
+requests>=2.32.5
