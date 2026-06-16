@@ -40,4 +40,3 @@ google-generativeai
 
 # Utilities
 tqdm
-pickle5
