@@ -8,6 +8,9 @@ python-dotenv
 slowapi
 limits
 
+# Redis (Conversation Memory)
+upstash-redis
+
 # LangChain
 langchain
 langchain-community
