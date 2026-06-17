@@ -177,5 +177,37 @@
         "rerank_score": 1.4306074142456056,
         "response_time": 17.52,
         "answer": "* 8.84 - cgpa, as mentioned in the education section of K.V.S MOHITH RESUME FINAL.pdf."
+    },
+    {
+        "timestamp": "2026-06-17 14:44:13.478625",
+        "question": "what is mohith's cgpa",
+        "rewritten_query": "What is Mohith's CGPA",
+        "selected_documents": null,
+        "document_score": 0.3122868809433581,
+        "rerank_score": 1.4306074142456056,
+        "context_tokens": 1156,
+        "answer": "* 8.84 - cgpa (from Gayatri Vidya Parishad College for Degree and PG Courses, Computer science Engineering with specialization in Artificial Intelligence and machine learning)",
+        "sources": [
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 2 | Section: certificate",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 32 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 38 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 51 | Section: throughout the system",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 50 | Section: implementation",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 120 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 39 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 14 | Section: 1introduction",
+            "GVP-MAAA PAPER.pdf | Page 2 | Section: 2 literature survey",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: education"
+        ],
+        "response_time": 19.59
+    },
+    {
+        "timestamp": "2026-06-17 14:44:13.645627",
+        "question": "what is mohith's cgpa",
+        "rewritten_query": "What is Mohith's CGPA",
+        "document_score": 0.3122868809433581,
+        "rerank_score": 1.4306074142456056,
+        "response_time": 19.76,
+        "answer": "* 8.84 - cgpa (from Gayatri Vidya Parishad College for Degree and PG Courses, Computer science Engineering with specialization in Artificial Intelligence and machine learning)"
     }
 ]
