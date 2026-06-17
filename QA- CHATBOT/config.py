@@ -10,6 +10,11 @@
 # =========================
 # RETRIEVAL SETTINGS
 # =========================
+#
+# CHANGED: TOP_K_RETRIEVAL lowered from implicit 150 (hardcoded in
+# vector_store.py's similarity_search_with_score call) — see note below.
+# This value here controls the FINAL number of chunks returned after
+# hybrid fusion, which was already fine at 15.
 
 TOP_K_RETRIEVAL = 15
 
@@ -37,8 +42,20 @@ TEMPERATURE = 0
 # =========================
 # DEBUG SETTINGS
 # =========================
+#
+# CHANGED: DEBUG = False (was True)
+#
+# WHY THIS MATTERS FOR MEMORY:
+# With DEBUG=True, every single /chat request prints EVERY chunk's
+# full content, every semantic result, every BM25 result, and builds
+# multiple large temporary lists just for printing. On Render's free
+# 512MB instance, this print-heavy debug path during each request was
+# a major contributor to memory spikes that crashed the server.
+#
+# Keep DEBUG=True only when running locally for development/learning.
+# Always set DEBUG=False before deploying to production.
 
-DEBUG = True
+DEBUG = False
 
 
 # =========================

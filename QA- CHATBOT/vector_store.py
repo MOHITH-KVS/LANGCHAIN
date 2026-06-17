@@ -251,7 +251,7 @@ def hybrid_retrieve(
 
         query,
 
-        k=150
+        k=50
     )
 
     if DEBUG:
@@ -443,16 +443,17 @@ def hybrid_retrieve(
         )
 
 
-    print("\nRESUME CHUNKS IN BM25 RESULTS")
+    if DEBUG:
+        print("\nRESUME CHUNKS IN BM25 RESULTS")
 
-    for chunk, score in bm25_ranked[:50]:
+        for chunk, score in bm25_ranked[:50]:
 
-        if chunk["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf":
+            if chunk["metadata"]["source"] == "K.V.S MOHITH RESUME FINAL.pdf":
 
-            print(
-                chunk["chunk_id"],
-                score
-            )
+                print(
+                    chunk["chunk_id"],
+                    score
+                )
 
     # =========================
     # MERGE RESULTS
@@ -598,17 +599,18 @@ def hybrid_retrieve(
         print("-"*80)
 
 
-    print("\nFINAL TOP K CHUNKS")
+    if DEBUG:
+        print("\nFINAL TOP K CHUNKS")
 
-    for doc, score in combined_results[:10]:
+        for doc, score in combined_results[:10]:
 
-        print(
-            "CHUNK:",
-            doc.metadata.get("chunk_id", "N/A"),
-            "| SECTION:",
-            doc.metadata.get("section", "N/A"),
-            "| SCORE:",
-            round(score, 4)
-        )
+            print(
+                "CHUNK:",
+                doc.metadata.get("chunk_id", "N/A"),
+                "| SECTION:",
+                doc.metadata.get("section", "N/A"),
+                "| SCORE:",
+                round(score, 4)
+            )
 
     return combined_results[:k]
