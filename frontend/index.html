@@ -228,8 +228,17 @@
 
 <script>
   const API_BASE = "https://docsense-ai-backend-s056.onrender.com";
-  const SESSION_ID = "session_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now();
+  function getOrCreateSessionId() {
+    let id = localStorage.getItem("docmind_session_id");
+    if (!id) {
+      id = "session_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now();
+      localStorage.setItem("docmind_session_id", id);
+    }
+    return id;
+  }
+  const SESSION_ID = getOrCreateSessionId();
   let uploadedDocs = [], activeDoc = null, isLoading = false;
+  let chatHistory = JSON.parse(localStorage.getItem("docmind_chat_history") || "[]");
 
   function autoResize(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 120) + "px"; }
   function handleKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
@@ -259,7 +268,7 @@
     } finally { isLoading = false; document.getElementById("send-btn").disabled = false; }
   }
 
-  function addMessage(role, text, sources = []) {
+  function addMessage(role, text, sources = [], save = true) {
     const container = document.getElementById("messages");
     const msg = document.createElement("div"); msg.className = `message ${role}`;
     const avatar = document.createElement("div"); avatar.className = `avatar ${role}`;
@@ -287,6 +296,10 @@
     }
     msg.appendChild(avatar); msg.appendChild(bubble); container.appendChild(msg);
     container.scrollTop = container.scrollHeight;
+    if (save) {
+      chatHistory.push({ role, text, sources });
+      localStorage.setItem("docmind_chat_history", JSON.stringify(chatHistory));
+    }
   }
 
   function showTyping() {
@@ -306,6 +319,7 @@
   }
 
   async function newChat() {
+    chatHistory = []; localStorage.removeItem("docmind_chat_history");
     const container = document.getElementById("messages");
     container.innerHTML = "";
     const empty = document.createElement("div"); empty.className = "empty-state"; empty.id = "empty-state";
@@ -344,10 +358,11 @@
     }
   }
 
-  function addDocToList(filename) {
+  function addDocToList(filename, save = true) {
     const noMsg = document.getElementById("no-docs-msg"); if (noMsg) noMsg.remove();
     if (uploadedDocs.includes(filename)) return;
     uploadedDocs.push(filename);
+    if (save) localStorage.setItem("docmind_docs", JSON.stringify(uploadedDocs));
     const list = document.getElementById("docs-list");
     const item = document.createElement("div"); item.className = "doc-item"; item.dataset.name = filename;
     item.innerHTML = `<span class="doc-icon">📄</span><span class="doc-name" title="${filename}">${filename}</span>`;
@@ -372,6 +387,16 @@
     toast.innerHTML = `<span>${icon}</span> ${message}`; container.appendChild(toast);
     setTimeout(() => { toast.style.opacity = "0"; toast.style.transition = "opacity 0.3s"; setTimeout(() => toast.remove(), 300); }, 3000);
   }
+
+  function restoreState() {
+    const savedDocs = JSON.parse(localStorage.getItem("docmind_docs") || "[]");
+    savedDocs.forEach(name => addDocToList(name, false));
+    if (chatHistory.length > 0) {
+      document.getElementById("empty-state").style.display = "none";
+      chatHistory.forEach(m => addMessage(m.role, m.text, m.sources || [], false));
+    }
+  }
+  restoreState();
 </script>
 </body>
 </html>
