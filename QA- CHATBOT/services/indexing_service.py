@@ -42,7 +42,7 @@ from vector_store import (
     add_documents_to_vector_store
 )
 
-from sklearn.metrics.pairwise import cosine_similarity
+
 import numpy as np
 
 
@@ -57,6 +57,17 @@ FAISS_INDEX_PATH = "faiss_index"
 CHUNKS_PATH = "chunks.pkl"
 
 DOCUMENT_REGISTRY_PATH = "document_registry.pkl"
+
+
+
+def cosine_similarity_manual(a, b):
+        a = np.array(a)
+        b = np.array(b)
+ 
+        a_norm = a / (np.linalg.norm(a, axis=1, keepdims=True) + 1e-10)
+        b_norm = b / (np.linalg.norm(b, axis=1, keepdims=True) + 1e-10)
+ 
+        return np.dot(a_norm, b_norm.T)
 
 
 def build_document_summary(document_chunks):
@@ -107,10 +118,10 @@ def build_document_summary(document_chunks):
     # CHUNK SIMILARITY TO DOCUMENT
     # =========================
 
-    similarities = cosine_similarity(
-
+    similarities = cosine_similarity_manual(
+ 
         chunk_embeddings,
-
+ 
         document_centroid
     ).flatten()
 
