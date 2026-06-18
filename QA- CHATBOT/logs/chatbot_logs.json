@@ -305,5 +305,37 @@
         "rerank_score": 1.4306074142456056,
         "response_time": 6.71,
         "answer": "* 8.84 - cgpa (from Gayatri Vidya Parishad College for Degree and PG Courses)"
+    },
+    {
+        "timestamp": "2026-06-18 12:01:12.811135",
+        "question": "WHAT IS MOHITH'S CGPA?",
+        "rewritten_query": "What is Mohith's CGPA?",
+        "selected_documents": null,
+        "document_score": 0.3378249104128152,
+        "rerank_score": 1.4917242884635926,
+        "context_tokens": 1319,
+        "answer": "* 8.84 - cgpa (from Gayatri Vidya Parishad College for Degree and PG Courses)",
+        "sources": [
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 2 | Section: certificate",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 32 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 50 | Section: implementation",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 51 | Section: throughout the system",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 39 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 38 | Section: general",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 14 | Section: 1introduction",
+            "GVP-MAAA DOCUMENTATION (1).pdf | Page 120 | Section: general",
+            "GVP-MAAA PAPER.pdf | Page 2 | Section: 2 literature survey",
+            "K.V.S MOHITH RESUME FINAL.pdf | Page 1 | Section: education"
+        ],
+        "response_time": 27.21
+    },
+    {
+        "timestamp": "2026-06-18 12:01:12.994034",
+        "question": "WHAT IS MOHITH'S CGPA?",
+        "rewritten_query": "What is Mohith's CGPA?",
+        "document_score": 0.3378249104128152,
+        "rerank_score": 1.4917242884635926,
+        "response_time": 27.39,
+        "answer": "* 8.84 - cgpa (from Gayatri Vidya Parishad College for Degree and PG Courses)"
     }
 ]
