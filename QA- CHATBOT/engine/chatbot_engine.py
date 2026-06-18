@@ -64,16 +64,10 @@ from resource_manager import (
 
 import pickle
 
-import tiktoken
 
 import os
 
 
-# =========================
-# TOKENIZER
-# =========================
-
-tokenizer = tiktoken.get_encoding("cl100k_base")
 
 
 # =========================
@@ -98,11 +92,12 @@ MIN_CONTEXT_CHUNKS = 1
 # =========================
 
 def count_tokens(text):
-
-    return len(
-
-        tokenizer.encode(text)
-    )
+        # Simple approximation: ~4 characters per token on average
+        # for English text. This avoids needing tiktoken (which
+        # requires a Rust compiler to install on some servers).
+        # It's not exact, but it's a safe overestimate-friendly
+        # approximation for staying under context limits.
+        return len(text) // 4
 
 
 # =========================
