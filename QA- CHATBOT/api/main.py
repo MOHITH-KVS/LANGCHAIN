@@ -59,7 +59,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
-    # "https://your-app.vercel.app",  # ← add after deploying frontend
+    "https://docsense-ai-alpha.vercel.app", 
 ]
 
 app.add_middleware(
