@@ -19,6 +19,8 @@ python-multipart==0.0.29
 slowapi==0.1.9
 python-dotenv==1.2.2
 
+tiktoken==0.8.0
+
 groq==0.37.1
 
 tqdm==4.67.3
@@ -27,3 +29,4 @@ numpy==2.2.6
 upstash-redis
 
 requests>=2.32.5
+
