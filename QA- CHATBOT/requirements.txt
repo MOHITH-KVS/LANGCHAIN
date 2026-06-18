@@ -1,49 +1,29 @@
-# Core
-fastapi
-uvicorn[standard]
-python-multipart
-python-dotenv
+langchain==1.2.15
+langchain-community==0.4.1
+langchain-core==1.2.31
+langchain-groq==1.1.2
+langchain-huggingface==1.2.2
+langchain-text-splitters==1.1.2
 
-# Rate Limiting
-slowapi
-limits
+faiss-cpu==1.13.2
 
-# Redis (Conversation Memory)
+rank-bm25==0.2.2
+
+PyMuPDF==1.27.2
+pypdf==6.10.2
+
+fastapi==0.136.1
+uvicorn==0.47.0
+python-multipart==0.0.29
+
+slowapi==0.1.9
+python-dotenv==1.2.2
+
+groq==0.37.1
+
+tqdm==4.67.3
+numpy==2.2.6
+
 upstash-redis
 
-# LangChain
-langchain
-langchain-community
-langchain-core
-langchain-groq
-langchain-google-genai
-langchain-huggingface
-langchain-openai
-
-# Vector Store
-faiss-cpu
-
-# Embeddings and Reranking
-sentence-transformers
-
-# BM25
-rank-bm25
-
-# PDF Loading
-pymupdf
-
-# Tokenizer
-tiktoken
-
-# ML
-numpy
-scikit-learn
-
-# Groq
-groq
-
-# Google
-google-generativeai
-
-# Utilities
-tqdm
+requests>=2.32.5
