@@ -51,23 +51,14 @@ from services.logger import save_log
 
 
 from resource_manager import (
-
-    initialize_resources,
-
-    get_vector_store,
-
-    get_all_chunks,
-
-    get_bm25_index
-)
+        initialize_resources,
+        get_session_resources     # ✅ NEW — loads per-session resources
+    )
 
 
 import pickle
 
-
 import os
-
-
 
 
 # =========================
@@ -156,15 +147,21 @@ def ask_question(question, document_name=None, session_id="default"):
     start_time = time.time()
     
     
+   # =========================
+    # LOAD SESSION RESOURCES  (✅ V2 — per-session from Redis)
     # =========================
-    # LOAD CACHED RESOURCES
-    # =========================
-
-    all_chunks = get_all_chunks()
-
-    vector_store = get_vector_store()
-
-    bm25 = get_bm25_index()
+ 
+    vector_store, all_chunks, bm25 = get_session_resources(session_id)
+ 
+    # If user hasn't uploaded any documents yet for this session
+    if vector_store is None or all_chunks is None:
+        return {
+            "answer": (
+                "No documents found for your session. "
+                "Please upload a PDF first, then ask your question."
+            ),
+            "sources": []
+        }
 
 
     # =========================

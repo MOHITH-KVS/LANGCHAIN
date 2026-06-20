@@ -1,25 +1,26 @@
 # =============================================================
-# api/main.py  —  PHASE 2 UPDATED VERSION
+# api/main.py  —  V2 MULTI-TENANT VERSION
 # =============================================================
 #
-# WHAT CHANGED FROM PHASE 1:
+# WHAT CHANGED FROM V1:
 #
-#   1. ChatRequest now accepts optional session_id field
-#      Frontend will send a unique session_id per browser tab.
-#      If not sent, defaults to "default" (backward compatible).
+#   1. /upload now accepts session_id in the form data
+#      → passes it to index_single_document()
+#      → each user's PDF goes into their own private Redis index
 #
-#   2. /chat endpoint passes session_id to ask_question()
-#      so Redis memory is stored per-user, not shared globally.
+#   2. /chat already had session_id — no change needed there
+#      (chatbot_engine.py handles loading the right session's index)
 #
-#   3. New /clear-history endpoint so user can start a fresh chat.
+#   3. /clear-history now also clears the session's document index
+#      → when user starts a new chat, their old documents are cleared too
 #
-#   Everything else from Phase 1 is UNCHANGED.
+# EVERYTHING ELSE from Phase 1 and Phase 2 is UNCHANGED:
+#   - CORS, rate limiting, file validation, feedback — all same
 #
 # =============================================================
 
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -28,7 +29,8 @@ from slowapi.errors import RateLimitExceeded
 from engine.chatbot_engine import ask_question
 from services.indexing_service import index_single_document
 from services.feedback_manager import save_feedback
-from services.conversation_memory import clear_conversation_history   # ✅ NEW
+from services.conversation_memory import clear_conversation_history
+from services.session_store import clear_session      # ✅ NEW
 
 
 # =============================================================
@@ -37,15 +39,7 @@ from services.conversation_memory import clear_conversation_history   # ✅ NEW
 
 limiter = Limiter(key_func=get_remote_address)
 
-
-# =============================================================
-# FASTAPI APP
-# =============================================================
-
-app = FastAPI(
-    title="Industrial RAG Chatbot API",
-    version="2.0.0"
-)
+app = FastAPI(title="DocSense AI Backend", version="2.0.0")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -59,7 +53,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
-    "https://docsense-ai-alpha.vercel.app", 
+    # "https://your-app.vercel.app",  # ← add after deploying frontend
 ]
 
 app.add_middleware(
@@ -81,13 +75,13 @@ MAX_QUESTION_LENGTH = 500
 
 
 # =============================================================
-# REQUEST / RESPONSE MODELS
+# REQUEST MODELS
 # =============================================================
 
 class ChatRequest(BaseModel):
     question: str
     document_name: str | None = None
-    session_id: str = "default"    # ✅ NEW — unique ID per user/tab
+    session_id: str = "default"
 
     @field_validator("question")
     @classmethod
@@ -96,20 +90,13 @@ class ChatRequest(BaseModel):
         if len(v) == 0:
             raise ValueError("Question cannot be empty.")
         if len(v) > MAX_QUESTION_LENGTH:
-            raise ValueError(
-                f"Question too long. Maximum {MAX_QUESTION_LENGTH} characters allowed."
-            )
+            raise ValueError(f"Question too long. Maximum {MAX_QUESTION_LENGTH} characters allowed.")
         return v
 
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
-
-
-class UploadResponse(BaseModel):
-    message: str
-    filename: str
 
 
 class FeedbackRequest(BaseModel):
@@ -123,11 +110,11 @@ class FeedbackRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "Industrial RAG Chatbot API v2.0 Running"}
+    return {"message": "DocSense AI Backend v2.0 — Multi-tenant RAG"}
 
 
 # =============================================================
-# CHAT ENDPOINT
+# CHAT ENDPOINT  (unchanged from Phase 2)
 # =============================================================
 
 @app.post("/chat", response_model=ChatResponse)
@@ -137,16 +124,13 @@ def chat(chat_request: ChatRequest, request: Request):
         response = ask_question(
             question=chat_request.question,
             document_name=chat_request.document_name,
-            session_id=chat_request.session_id    # ✅ NEW — pass session_id
+            session_id=chat_request.session_id
         )
-
         answer = response.get("answer", "")
         while answer.endswith(","):
             answer = answer[:-1].strip()
         response["answer"] = answer
-
         return response
-
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -155,43 +139,67 @@ def chat(chat_request: ChatRequest, request: Request):
 
 
 # =============================================================
-# UPLOAD ENDPOINT
+# UPLOAD ENDPOINT  (✅ CHANGED — now accepts session_id)
 # =============================================================
 
-@app.post("/upload", response_model=UploadResponse)
+@app.post("/upload")
 @limiter.limit("5/minute")
-async def upload_pdf(request: Request, file: UploadFile = File(...)):
+async def upload_pdf(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: str = Form(default="default")    # ✅ NEW: which user's session
+):
+    """
+    Upload and index a PDF for a specific user session.
 
+    session_id comes from the frontend (generated per browser tab).
+    Each session gets its own private index in Redis.
+    Documents from different sessions NEVER mix.
+    """
+
+    # ── File type validation ──────────────────────────────────
     if file.content_type not in ALLOWED_FILE_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type. Only PDF files are allowed."
-        )
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
 
     if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(
-            status_code=400,
-            detail="File must have a .pdf extension."
-        )
+        raise HTTPException(status_code=400, detail="File must have a .pdf extension.")
 
+    # ── Read content ──────────────────────────────────────────
     content = await file.read()
 
+    # ── File size validation ──────────────────────────────────
     if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail="File too large. Maximum size is 10 MB."
-        )
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10 MB.")
 
     try:
-        file_path = f"documents/{file.filename}"
+        # ── Save temporarily to disk for processing ───────────
+        # We still need to write to disk temporarily for PyMuPDF
+        # to read the PDF content. We delete it after indexing.
+        import os
+        os.makedirs("documents", exist_ok=True)
+        file_path = f"documents/{session_id[:8]}_{file.filename}"
+
         with open(file_path, "wb") as f:
             f.write(content)
 
-        index_single_document(file_path)
+        # ── Index into THIS user's private session ────────────
+        # The session_id tells indexing_service which Redis key to use
+        index_single_document(
+            pdf_path=file_path,
+            session_id=session_id    # ✅ KEY CHANGE — per-session indexing
+        )
+
+        # ── Delete the temp file after indexing ───────────────
+        # We don't need it on disk anymore — it's in Redis
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
 
         return {
             "message": "PDF uploaded and indexed successfully",
-            "filename": file.filename
+            "filename": file.filename,
+            "session_id": session_id[:12] + "..."
         }
 
     except Exception as e:
@@ -199,7 +207,7 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
 
 
 # =============================================================
-# FEEDBACK ENDPOINT
+# FEEDBACK ENDPOINT  (unchanged)
 # =============================================================
 
 @app.post("/feedback")
@@ -213,16 +221,25 @@ def submit_feedback(request: Request, feedback_request: FeedbackRequest):
 
 
 # =============================================================
-# CLEAR HISTORY ENDPOINT  (✅ NEW)
+# CLEAR HISTORY ENDPOINT  (✅ UPDATED — also clears document index)
 # =============================================================
-# Frontend can call this when user clicks "New Chat" button.
-# Clears the Redis conversation history for that session.
 
 @app.post("/clear-history")
 @limiter.limit("10/minute")
 def clear_history(request: Request, session_id: str = "default"):
+    """
+    Clear both conversation history AND document index for this session.
+    Called when user clicks "New Chat" — starts completely fresh.
+    """
     try:
+        # Clear Redis conversation memory
         clear_conversation_history(session_id)
-        return {"status": "success", "message": "Conversation history cleared."}
+
+        # ✅ NEW: Also clear the session's document index
+        # This means a new chat = fresh document upload required
+        # Which is the correct behavior — no stale old documents
+        clear_session(session_id)
+
+        return {"status": "success", "message": "Chat history and documents cleared."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
