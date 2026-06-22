@@ -337,5 +337,33 @@
         "rerank_score": 1.4917242884635926,
         "response_time": 27.39,
         "answer": "* 8.84 - cgpa (from Gayatri Vidya Parishad College for Degree and PG Courses)"
+    },
+    {
+        "timestamp": "2026-06-22 13:52:01.667276",
+        "question": "WHAT IS MOHITH'S CGPA",
+        "rewritten_query": "What is Mohith's CGPA",
+        "selected_documents": null,
+        "document_score": 0.3122868809433581,
+        "rerank_score": 1.2922142028808594,
+        "context_tokens": 1173,
+        "answer": "* CGPA: 8 \n\nThis information is found in the sections related to Mohith's education, specifically in Chunk 5 and Chunk 9.",
+        "sources": [
+            "default_K.V.S MOHITH DATA-ANALYST RESUME.pdf | Page 1 | Section: 91 8309128335",
+            "default_K.V.S MOHITH DATA-ANALYST RESUME.pdf | Page 1 | Section: experience",
+            "default_K.V.S MOHITH DATA-ANALYST RESUME.pdf | Page 2 | Section: gvpmaaa multiagent academic assistant",
+            "default_K.V.S MOHITH DATA-ANALYST RESUME.pdf | Page 1 | Section: professional summary",
+            "default_K.V.S MOHITH DATA-ANALYST RESUME.pdf | Page 1 | Section: skills",
+            "default_K.V.S MOHITH DATA-ANALYST RESUME.pdf | Page 2 | Section: certificates"
+        ],
+        "response_time": 9.8
+    },
+    {
+        "timestamp": "2026-06-22 13:52:01.833651",
+        "question": "WHAT IS MOHITH'S CGPA",
+        "rewritten_query": "What is Mohith's CGPA",
+        "document_score": 0.3122868809433581,
+        "rerank_score": 1.2922142028808594,
+        "response_time": 9.97,
+        "answer": "* CGPA: 8 \n\nThis information is found in the sections related to Mohith's education, specifically in Chunk 5 and Chunk 9."
     }
 ]

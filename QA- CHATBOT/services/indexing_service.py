@@ -43,6 +43,12 @@ from vector_store import (
 )
 
 
+from services.session_store import (
+    load_session_data,
+    save_session_data
+)
+
+
 import numpy as np
 
 
@@ -433,265 +439,72 @@ def process_pdf_document(
     )
 
 
-# =========================
-# SAVE DATABASE FILES
-# =========================
 
-def save_database_files(
+def index_single_document(pdf_path, session_id="default"):
 
-    vector_store,
+    print(f"\nINDEXING FOR SESSION: {session_id[:12]}...")
 
-    all_chunks,
-
-    document_registry
-):
-
-
-    # =========================
-    # SAVE FAISS INDEX
-    # =========================
-
-    vector_store.save_local(
-
-        FAISS_INDEX_PATH
+    # Load existing session data from Redis
+    vector_store, all_chunks, document_registry = load_session_data(
+        session_id, embedding_model
     )
 
-
-    # =========================
-    # SAVE CHUNKS
-    # =========================
-
-    with open(
-
-        CHUNKS_PATH,
-
-        "wb"
-    ) as f:
-
-        pickle.dump(
-
-            all_chunks,
-
-            f
-        )
-
-
-    # =========================
-    # SAVE DOCUMENT REGISTRY
-    # =========================
-
-    with open(
-
-        DOCUMENT_REGISTRY_PATH,
-
-        "wb"
-    ) as f:
-
-        pickle.dump(
-
-            document_registry,
-
-            f
-        )
-
-
-# =========================
-# INDEX SINGLE DOCUMENT
-# =========================
-
-def index_single_document(
-
-    pdf_path
-):
-
-
-    # =========================
-    # LOAD EXISTING CHUNKS
-    # =========================
-
-    if os.path.exists(CHUNKS_PATH):
-
-        with open(CHUNKS_PATH, "rb") as f:
-
-            all_chunks = pickle.load(f)
-
-    else:
-
+    if all_chunks is None:
         all_chunks = []
-
-
-    # =========================
-    # LOAD DOCUMENT REGISTRY
-    # =========================
-
-    if os.path.exists(DOCUMENT_REGISTRY_PATH):
-
-        with open(DOCUMENT_REGISTRY_PATH, "rb") as f:
-
-            document_registry = pickle.load(f)
-
-    else:
-
+    if document_registry is None:
         document_registry = {}
 
-
-    # =========================
-    # LOAD OR CREATE VECTOR STORE
-    # =========================
-
-    if os.path.exists(FAISS_INDEX_PATH):
-
-        vector_store = load_vector_store(
-
-            embedding_model
-        )
-
-    else:
-
-        vector_store = None
-
-
-    # =========================
-    # GLOBAL CHUNK ID
-    # =========================
-
+    # Determine next chunk ID
     if all_chunks:
-
-        global_chunk_id = (
-
-            max(
-
-                chunk["chunk_id"]
-
-                for chunk in all_chunks
-            ) + 1
-        )
-
+        global_chunk_id = max(chunk["chunk_id"] for chunk in all_chunks) + 1
     else:
-
         global_chunk_id = 0
 
-
-    # =========================
-    # PROCESS NEW PDF
-    # =========================
-
+    # Process the new PDF
     (
-
         document_chunks,
-
         document_summary,
-
         document_keywords,
-
         global_chunk_id
+    ) = process_pdf_document(pdf_path, global_chunk_id)
 
-    ) = process_pdf_document(
+    # Add to existing chunks
+    all_chunks.extend(document_chunks)
 
-        pdf_path,
-
-        global_chunk_id
-    )
-
-
-    # =========================
-    # APPEND CHUNKS
-    # =========================
-
-    all_chunks.extend(
-
-        document_chunks
-    )
-
-
-    # =========================
-    # UPDATE REGISTRY
-    # =========================
-
-    pdf_file = os.path.basename(
-
-        pdf_path
-    )
-
-
+    # Update document registry
+    pdf_file = os.path.basename(pdf_path)
     document_registry[pdf_file] = {
-
         "summary": document_summary,
-
         "keywords": document_keywords,
-
         "sample_chunks": [
-
             chunk["content"][:500]
-
             for chunk in sorted(
-
                 document_chunks,
-
                 key=lambda x: len(x["content"]),
-
                 reverse=True
-
             )[:15]
         ]
     }
 
-    print("\n========================")
-    print("DOCUMENT PROFILE DEBUG")
-    print("========================")
-
+    print("\nDOCUMENT PROFILE DEBUG")
     print("FILE:", pdf_file)
+    print("\nKEYWORDS:", document_keywords[:10])
 
-    print("\nSUMMARY:")
-    print(document_summary[:500])
-
-    print("\nKEYWORDS:")
-    print(document_keywords[:20])
-
-    print("\nSAMPLE CHUNKS:")
-    for chunk in document_registry[pdf_file]["sample_chunks"][:3]:
-
-        print("-", chunk[:200])
-
-
-    # =========================
-    # CREATE OR UPDATE VECTOR STORE
-    # =========================
-
+    # Create or update FAISS vector store
     if vector_store is None:
-
-        vector_store = create_vector_store(
-
-            document_chunks,
-
-            embedding_model
-        )
-
+        vector_store = create_vector_store(document_chunks, embedding_model)
     else:
+        vector_store = add_documents_to_vector_store(vector_store, document_chunks)
 
-        vector_store = add_documents_to_vector_store(
-
-            vector_store,
-
-            document_chunks
-        )
-
-
-    # =========================
-    # SAVE UPDATED DATABASE
-    # =========================
-
-    save_database_files(
-
-        vector_store,
-
-        all_chunks,
-
-        document_registry
+    # Save to Redis (not disk)
+    save_session_data(
+        session_id=session_id,
+        vector_store=vector_store,
+        all_chunks=all_chunks,
+        document_registry=document_registry
     )
 
-
-    print(f"\nNEW DOCUMENT INDEXED: {pdf_file}")
+    print(f"\n✅ INDEXED AND SAVED TO REDIS: {pdf_file}")
 
 
 # =========================

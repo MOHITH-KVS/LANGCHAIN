@@ -342,6 +342,7 @@
     const progressFill = document.getElementById("progress-fill");
     statusEl.classList.add("visible"); statusText.textContent = `Uploading ${file.name}...`; progressFill.style.width = "30%";
     const formData = new FormData(); formData.append("file", file);
+    formData.append("session_id", SESSION_ID);
     try {
       progressFill.style.width = "60%";
       const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
